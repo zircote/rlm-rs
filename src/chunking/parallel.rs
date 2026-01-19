@@ -269,17 +269,17 @@ mod tests {
             match chunk.byte_range.start.cmp(&last_end) {
                 Ordering::Greater => {
                     // Gap - shouldn't happen in well-formed chunking
-                },
+                }
                 Ordering::Less => {
                     // Overlap - skip overlapping portion
                     let skip = last_end - chunk.byte_range.start;
                     if skip < chunk.content.len() {
                         reconstructed.push_str(&chunk.content[skip..]);
                     }
-                },
+                }
                 Ordering::Equal => {
                     reconstructed.push_str(&chunk.content);
-                },
+                }
             }
             last_end = chunk.byte_range.end;
         }

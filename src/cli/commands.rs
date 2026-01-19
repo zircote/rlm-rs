@@ -54,7 +54,7 @@ pub fn execute(cli: &Cli) -> Result<String> {
         Commands::ListBuffers => cmd_list_buffers(&db_path, format),
         Commands::ShowBuffer { buffer, chunks } => {
             cmd_show_buffer(&db_path, buffer, *chunks, format)
-        },
+        }
         Commands::DeleteBuffer { buffer, yes } => cmd_delete_buffer(&db_path, buffer, *yes, format),
         Commands::Peek { buffer, start, end } => cmd_peek(&db_path, buffer, *start, *end, format),
         Commands::Grep {
@@ -94,10 +94,10 @@ pub fn execute(cli: &Cli) -> Result<String> {
         ),
         Commands::AddBuffer { name, content } => {
             cmd_add_buffer(&db_path, name, content.as_deref(), format)
-        },
+        }
         Commands::ExportBuffers { output, pretty } => {
             cmd_export_buffers(&db_path, output.as_deref(), *pretty, format)
-        },
+        }
         Commands::Variable {
             name,
             value,
@@ -275,7 +275,7 @@ fn cmd_load(
                 "source": file.to_string_lossy()
             });
             Ok(serde_json::to_string_pretty(&result).unwrap_or_default())
-        },
+        }
     }
 }
 
@@ -505,7 +505,7 @@ fn cmd_add_buffer(
                 "size": content.len()
             });
             Ok(serde_json::to_string_pretty(&result).unwrap_or_default())
-        },
+        }
     }
 }
 

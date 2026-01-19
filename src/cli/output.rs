@@ -122,7 +122,7 @@ pub fn format_buffer(buffer: &Buffer, chunks: Option<&[Chunk]>, format: OutputFo
                 chunks: Option<&'a [Chunk]>,
             }
             format_json(&BufferWithChunks { buffer, chunks })
-        },
+        }
     }
 }
 
@@ -191,7 +191,7 @@ pub fn format_peek(content: &str, start: usize, end: usize, format: OutputFormat
             }
             output.push_str("---\n");
             output
-        },
+        }
         OutputFormat::Json => {
             #[derive(Serialize)]
             struct PeekOutput<'a> {
@@ -206,7 +206,7 @@ pub fn format_peek(content: &str, start: usize, end: usize, format: OutputFormat
                 size: end - start,
                 content,
             })
-        },
+        }
     }
 }
 
@@ -250,7 +250,7 @@ pub fn format_chunk_indices(indices: &[(usize, usize)], format: OutputFormat) ->
                 let _ = writeln!(output, "  [{i}] {start}..{end} ({} bytes)", end - start);
             }
             output
-        },
+        }
         OutputFormat::Json => format_json(&indices),
     }
 }
@@ -266,7 +266,7 @@ pub fn format_write_chunks_result(paths: &[String], format: OutputFormat) -> Str
                 let _ = writeln!(output, "  {path}");
             }
             output
-        },
+        }
         OutputFormat::Json => format_json(&paths),
     }
 }
@@ -282,7 +282,7 @@ pub fn format_context(context: &Context, format: OutputFormat) -> String {
             let _ = writeln!(output, "  Globals:   {}", context.global_count());
             let _ = writeln!(output, "  Buffers:   {}", context.buffer_count());
             output
-        },
+        }
         OutputFormat::Json => format_json(&context),
     }
 }

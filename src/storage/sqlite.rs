@@ -211,7 +211,7 @@ impl Storage for SqliteStorage {
             Some(json) => {
                 let context = serde_json::from_str(&json).map_err(StorageError::from)?;
                 Ok(Some(context))
-            },
+            }
             None => Ok(None),
         }
     }

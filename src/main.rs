@@ -17,10 +17,10 @@ fn main() -> ExitCode {
                 print!("{output}");
             }
             ExitCode::SUCCESS
-        },
+        }
         Err(e) => {
             eprintln!("Error: {e}");
             ExitCode::FAILURE
-        },
+        }
     }
 }
