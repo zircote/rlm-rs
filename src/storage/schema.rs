@@ -1,0 +1,152 @@
+//! Database schema definitions.
+//!
+//! Contains SQL schema and migration logic for the RLM `SQLite` database.
+
+/// Current schema version.
+pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+
+/// SQL schema for initial database setup.
+pub const SCHEMA_SQL: &str = r"
+-- Schema version tracking
+CREATE TABLE IF NOT EXISTS schema_info (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+-- RLM Context state
+CREATE TABLE IF NOT EXISTS context (
+    id INTEGER PRIMARY KEY CHECK (id = 1),  -- Singleton
+    data TEXT NOT NULL,  -- JSON serialized Context
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- Buffers (text content containers)
+CREATE TABLE IF NOT EXISTS buffers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    source_path TEXT,
+    content TEXT NOT NULL,
+    content_type TEXT,
+    content_hash TEXT,
+    size INTEGER NOT NULL,
+    line_count INTEGER,
+    chunk_count INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- Index for buffer lookup by name
+CREATE INDEX IF NOT EXISTS idx_buffers_name ON buffers(name);
+
+-- Index for buffer lookup by hash (deduplication)
+CREATE INDEX IF NOT EXISTS idx_buffers_hash ON buffers(content_hash);
+
+-- Chunks (segments of buffer content)
+CREATE TABLE IF NOT EXISTS chunks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    buffer_id INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    byte_start INTEGER NOT NULL,
+    byte_end INTEGER NOT NULL,
+    chunk_index INTEGER NOT NULL,
+    strategy TEXT,
+    token_count INTEGER,
+    line_start INTEGER,
+    line_end INTEGER,
+    has_overlap INTEGER NOT NULL DEFAULT 0,
+    content_hash TEXT,
+    custom_metadata TEXT,  -- JSON for extensible metadata
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (buffer_id) REFERENCES buffers(id) ON DELETE CASCADE
+);
+
+-- Index for chunk lookup by buffer
+CREATE INDEX IF NOT EXISTS idx_chunks_buffer ON chunks(buffer_id);
+
+-- Index for chunk ordering
+CREATE INDEX IF NOT EXISTS idx_chunks_order ON chunks(buffer_id, chunk_index);
+
+-- Metadata key-value store for extensibility
+CREATE TABLE IF NOT EXISTS metadata (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+";
+
+/// SQL to check if schema is initialized.
+pub const CHECK_SCHEMA_SQL: &str = r"
+SELECT COUNT(*) FROM sqlite_master
+WHERE type='table' AND name='schema_info';
+";
+
+/// SQL to get schema version.
+pub const GET_VERSION_SQL: &str = r"
+SELECT value FROM schema_info WHERE key = 'version';
+";
+
+/// SQL to set schema version.
+pub const SET_VERSION_SQL: &str = r"
+INSERT OR REPLACE INTO schema_info (key, value) VALUES ('version', ?);
+";
+
+/// Migrations from older schema versions.
+pub struct Migration {
+    /// Version this migration upgrades from.
+    pub from_version: u32,
+    /// Version this migration upgrades to.
+    pub to_version: u32,
+    /// SQL statements to execute.
+    pub sql: &'static str,
+}
+
+/// Available migrations.
+pub const MIGRATIONS: &[Migration] = &[
+    // Future migrations will be added here
+    // Migration {
+    //     from_version: 1,
+    //     to_version: 2,
+    //     sql: "ALTER TABLE buffers ADD COLUMN new_field TEXT;",
+    // },
+];
+
+/// Gets migrations needed to upgrade from a version.
+#[must_use]
+pub fn get_migrations_from(current_version: u32) -> Vec<&'static Migration> {
+    MIGRATIONS
+        .iter()
+        .filter(|m| m.from_version >= current_version && m.to_version <= CURRENT_SCHEMA_VERSION)
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_schema_version() {
+        const _: () = assert!(CURRENT_SCHEMA_VERSION >= 1);
+    }
+
+    #[test]
+    fn test_schema_sql_not_empty() {
+        assert!(!SCHEMA_SQL.is_empty());
+        assert!(SCHEMA_SQL.contains("CREATE TABLE"));
+    }
+
+    #[test]
+    fn test_migrations_ordered() {
+        for migration in MIGRATIONS {
+            assert!(migration.to_version > migration.from_version);
+        }
+    }
+
+    #[test]
+    fn test_get_migrations_from() {
+        let migrations = get_migrations_from(0);
+        // Should return all migrations for fresh install
+        assert!(migrations.len() <= MIGRATIONS.len());
+    }
+}

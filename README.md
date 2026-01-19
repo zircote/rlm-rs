@@ -1,111 +1,142 @@
-# {{crate_name}}
+# rlm-rs
 
-<!-- Badges -->
-[![GitHub Template](https://img.shields.io/badge/template-zircote%2Frust--template-blue?logo=github)](https://github.com/zircote/rust-template)
-[![CI](https://github.com/zircote/{{crate_name}}/actions/workflows/ci.yml/badge.svg)](https://github.com/zircote/{{crate_name}}/actions/workflows/ci.yml)
-[![Crates.io](https://img.shields.io/crates/v/{{crate_name}}.svg?logo=rust&logoColor=white)](https://crates.io/crates/{{crate_name}})
-[![Documentation](https://docs.rs/{{crate_name}}/badge.svg)](https://docs.rs/{{crate_name}})
-[![Rust Version](https://img.shields.io/badge/rust-1.80%2B-dea584?logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![CI](https://github.com/zircote/rlm/actions/workflows/ci.yml/badge.svg)](https://github.com/zircote/rlm/actions/workflows/ci.yml)
+[![Rust Version](https://img.shields.io/badge/rust-1.85%2B-dea584?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Clippy](https://img.shields.io/badge/linting-clippy-orange?logo=rust&logoColor=white)](https://github.com/rust-lang/rust-clippy)
-[![cargo-deny](https://img.shields.io/badge/security-cargo--deny-blue?logo=rust&logoColor=white)](https://github.com/EmbarkStudios/cargo-deny)
-[![Security: gitleaks](https://img.shields.io/badge/security-gitleaks-blue?logo=git&logoColor=white)](https://github.com/gitleaks/gitleaks)
-[![Dependabot](https://img.shields.io/badge/dependabot-enabled-025e8c?logo=dependabot)](https://docs.github.com/en/code-security/dependabot)
 
-A Rust crate description.
+Recursive Language Model (RLM) CLI for Claude Code - handles long-context tasks via chunking and recursive sub-LLM calls.
+
+Based on the RLM pattern from [arXiv:2512.24601](https://arxiv.org/abs/2512.24601), enabling analysis of documents up to 100x larger than typical context windows.
 
 ## Features
 
-- Feature 1
-- Feature 2
-- Feature 3
+- **Multiple Chunking Strategies**: Fixed, semantic, and parallel chunking
+- **SQLite State Persistence**: Reliable buffer management across sessions
+- **Regex Search**: Fast content search with context windows
+- **Memory-Mapped I/O**: Efficient handling of large files
+- **JSON Output**: Machine-readable output for integration
+
+## How It Works
+
+<p align="center">
+  <img src=".github/readme-infographic.svg" alt="RLM Architecture Diagram" width="800">
+</p>
 
 ## Installation
 
-Add this to your `Cargo.toml`:
-
-```toml
-[dependencies]
-{{crate_name}} = "0.1"
-```
-
-Or use cargo add:
+### Via Cargo (Recommended)
 
 ```bash
-cargo add {{crate_name}}
+cargo install rlm-rs
+```
+
+### Via Homebrew
+
+```bash
+brew tap zircote/tap
+brew install rlm-rs
+```
+
+### From Source
+
+```bash
+git clone https://github.com/zircote/rlm.git
+cd rlm
+make install
 ```
 
 ## Quick Start
 
-```rust
-use {{crate_name}}::{add, divide, Config};
+```bash
+# Initialize the database
+rlm-rs init
 
-fn main() -> Result<(), {{crate_name}}::Error> {
-    // Basic arithmetic
-    let sum = add(2, 3);
-    println!("2 + 3 = {}", sum);
+# Load a large document with semantic chunking
+rlm-rs load document.md --name docs --chunker semantic
 
-    // Safe division with error handling
-    let quotient = divide(10, 2)?;
-    println!("10 / 2 = {}", quotient);
+# Check status
+rlm-rs status
 
-    // Using configuration builder
-    let config = Config::new()
-        .with_verbose(true)
-        .with_max_retries(5);
+# Search content
+rlm-rs grep docs "pattern" --max-matches 20
 
-    Ok(())
-}
+# View content slice
+rlm-rs peek docs --start 0 --end 3000
+
+# Write chunks to files for processing
+rlm-rs write-chunks docs --out-dir .rlm/chunks
 ```
 
-## API Overview
+## Commands
 
-### Functions
+| Command | Description |
+|---------|-------------|
+| `init` | Initialize the RLM database |
+| `status` | Show current state (buffers, chunks, DB info) |
+| `load` | Load a file into a buffer with chunking |
+| `list` | List all buffers |
+| `show` | Show buffer details |
+| `delete` | Delete a buffer |
+| `peek` | View a slice of buffer content |
+| `grep` | Search buffer content with regex |
+| `write-chunks` | Write chunks to individual files |
+| `add-buffer` | Add text to a new buffer |
+| `export-buffers` | Export all buffers to JSON |
+| `var` | Get/set context variables |
+| `global` | Get/set global variables |
+| `reset` | Delete all RLM state |
 
-| Function | Description |
-|----------|-------------|
-| `add(a, b)` | Adds two numbers |
-| `divide(a, b)` | Divides with error handling |
+## Chunking Strategies
 
-### Types
+| Strategy | Best For | Description |
+|----------|----------|-------------|
+| `semantic` | Markdown, code, JSON | Splits at natural boundaries (headings, paragraphs) |
+| `fixed` | Logs, plain text | Splits at exact byte boundaries |
+| `parallel` | Large files (>10MB) | Multi-threaded fixed chunking |
 
-| Type | Description |
-|------|-------------|
-| `Config` | Configuration with builder pattern |
-| `Error` | Error type for operations |
-| `Result<T>` | Type alias for `Result<T, Error>` |
+```bash
+# Semantic chunking (default)
+rlm-rs load doc.md --chunker semantic
+
+# Fixed chunking with overlap
+rlm-rs load logs.txt --chunker fixed --chunk-size 150000 --overlap 1000
+
+# Parallel chunking for speed
+rlm-rs load huge.txt --chunker parallel --chunk-size 100000
+```
+
+## Claude Code Integration
+
+rlm-rs is designed to work with the [rlm-rs Claude Code plugin](https://github.com/zircote/rlm-plugin), implementing the RLM architecture:
+
+| RLM Concept | Implementation |
+|-------------|----------------|
+| Root LLM | Main Claude Code conversation (Opus/Sonnet) |
+| Sub-LLM | `rlm-subcall` agent (Haiku) |
+| External Environment | `rlm-rs` CLI + SQLite |
 
 ## Development
 
 ### Prerequisites
 
-- Rust 1.80+ (2024 edition)
+- Rust 1.85+ (2024 edition)
 - [cargo-deny](https://github.com/EmbarkStudios/cargo-deny) for supply chain security
 
-### Setup
+### Build
 
 ```bash
-# Clone the repository
-git clone https://github.com/zircote/{{crate_name}}.git
-cd {{crate_name}}
+# Using Makefile
+make build          # Debug build
+make release        # Release build
+make test           # Run tests
+make check          # Format + lint + test
+make ci             # Full CI check
+make install        # Install to ~/.cargo/bin
 
-# Build
-cargo build
-
-# Run tests
+# Or using Cargo directly
+cargo build --release
 cargo test
-
-# Run linting
 cargo clippy --all-targets --all-features
-
-# Format code
-cargo fmt
-
-# Check supply chain security
-cargo deny check
-
-# Generate documentation
-cargo doc --open
 ```
 
 ### Project Structure
@@ -113,73 +144,28 @@ cargo doc --open
 ```
 src/
 ├── lib.rs           # Library entry point
-├── main.rs          # Binary entry point
-└── ...              # Additional modules
+├── main.rs          # CLI entry point
+├── error.rs         # Error types
+├── core/            # Core types (Buffer, Chunk, Variable)
+├── chunking/        # Chunking strategies
+├── storage/         # SQLite persistence
+├── io/              # File I/O with mmap
+└── cli/             # Command implementations
 
 tests/
 └── integration_test.rs
-
-Cargo.toml           # Project manifest
-clippy.toml          # Clippy configuration
-rustfmt.toml         # Formatter configuration
-deny.toml            # cargo-deny configuration
-CLAUDE.md            # AI assistant instructions
-```
-
-### Code Quality
-
-This project maintains high code quality standards:
-
-- **Linting**: clippy with pedantic and nursery lints
-- **Formatting**: rustfmt with custom configuration
-- **Testing**: Unit tests, integration tests, and property-based tests
-- **Documentation**: All public APIs documented with examples
-- **Supply Chain**: cargo-deny for dependency auditing
-- **CI/CD**: GitHub Actions for automated testing
-
-### Running Checks
-
-```bash
-# Run all checks
-cargo fmt -- --check && \
-cargo clippy --all-targets --all-features -- -D warnings && \
-cargo test && \
-cargo doc --no-deps && \
-cargo deny check
-
-# Run with MIRI for undefined behavior detection
-cargo +nightly miri test
 ```
 
 ## MSRV Policy
 
-The Minimum Supported Rust Version (MSRV) is **1.80**. Increasing the MSRV is considered a minor breaking change.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Run the test suite (`cargo test`)
-5. Run linting (`cargo clippy --all-targets --all-features`)
-6. Format code (`cargo fmt`)
-7. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-8. Push to the branch (`git push origin feature/amazing-feature`)
-9. Open a Pull Request
-
-Please ensure your PR:
-- Passes all CI checks
-- Includes tests for new functionality
-- Updates documentation as needed
-- Follows the existing code style
-- Does not introduce unsafe code without justification
+The Minimum Supported Rust Version (MSRV) is **1.85**.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE) for details.
 
 ## Acknowledgments
 
-- [The Rust Programming Language](https://www.rust-lang.org/)
-- [Cargo](https://doc.rust-lang.org/cargo/)
-- [clippy](https://github.com/rust-lang/rust-clippy)
+- [claude_code_RLM](https://github.com/brainqub3/claude_code_RLM) - Original Python RLM implementation by [Brainqub3](https://brainqub3.com/) that inspired the creation of this project
+- [RLM Paper (arXiv:2512.24601)](https://arxiv.org/abs/2512.24601) - Recursive Language Model pattern by Zhang, Kraska, and Khattab (MIT CSAIL)
+- [Claude Code](https://claude.ai/code) - AI-powered development environment

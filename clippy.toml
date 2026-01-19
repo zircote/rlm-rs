@@ -4,9 +4,6 @@
 # Maximum cognitive complexity for functions
 cognitive-complexity-threshold = 25
 
-# Maximum allowed nesting depth
-max-nesting-depth = 4
-
 # Maximum number of lines in a function
 too-many-lines-threshold = 100
 
@@ -32,7 +29,7 @@ allow-unwrap-in-tests = true
 allow-print-in-tests = true
 
 # MSRV for lint behavior
-msrv = "1.80"
+msrv = "1.85"
 
 # Type complexity threshold
 type-complexity-threshold = 250

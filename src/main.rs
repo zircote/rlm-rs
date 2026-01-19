@@ -1,33 +1,26 @@
-//! Binary entry point for {{crate_name}}.
+//! Binary entry point for RLM-RS.
+//!
+//! RLM-RS: Recursive Language Model REPL for Claude Code.
 
-#![deny(clippy::all)]
-#![warn(clippy::pedantic)]
-#![warn(missing_docs)]
+#![allow(clippy::print_stdout, clippy::print_stderr)]
 
-use {{crate_name}}::{add, divide, Config};
+use clap::Parser;
+use rlm_rs::cli::{Cli, execute};
+use std::process::ExitCode;
 
-/// Main entry point.
-fn main() {
-    // Example usage
-    let config = Config::new().with_verbose(true);
+fn main() -> ExitCode {
+    let cli = Cli::parse();
 
-    if config.verbose {
-        eprintln!("Running {{crate_name}} with verbose mode enabled");
-    }
-
-    // Demonstrate add function
-    let sum = add(2, 3);
-    eprintln!("2 + 3 = {sum}");
-
-    // Demonstrate divide function with error handling
-    match divide(10, 2) {
-        Ok(result) => eprintln!("10 / 2 = {result}"),
-        Err(e) => eprintln!("Error: {e}"),
-    }
-
-    // Demonstrate error case
-    match divide(10, 0) {
-        Ok(result) => eprintln!("10 / 0 = {result}"),
-        Err(e) => eprintln!("Expected error: {e}"),
+    match execute(&cli) {
+        Ok(output) => {
+            if !output.is_empty() {
+                print!("{output}");
+            }
+            ExitCode::SUCCESS
+        },
+        Err(e) => {
+            eprintln!("Error: {e}");
+            ExitCode::FAILURE
+        },
     }
 }

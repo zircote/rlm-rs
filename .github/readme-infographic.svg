@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" width="800" height="400">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a"/>
+      <stop offset="100%" style="stop-color:#1e293b"/>
+    </linearGradient>
+    <linearGradient id="orange" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#f97316"/>
+      <stop offset="100%" style="stop-color:#ea580c"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#22c55e"/>
+      <stop offset="100%" style="stop-color:#16a34a"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#3b82f6"/>
+      <stop offset="100%" style="stop-color:#2563eb"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="400" fill="url(#bg)" rx="12"/>
+
+  <!-- Title -->
+  <text x="400" y="45" text-anchor="middle" font-family="system-ui, sans-serif" font-size="24" font-weight="700" fill="#f8fafc">
+    How RLM Works
+  </text>
+
+  <!-- Step 1: Large Document -->
+  <g transform="translate(60, 80)">
+    <rect width="140" height="180" rx="8" fill="#334155" stroke="#475569" stroke-width="2"/>
+    <text x="70" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#94a3b8">Large Document</text>
+    <!-- Document lines -->
+    <g fill="#64748b">
+      <rect x="15" y="45" width="110" height="6" rx="2"/>
+      <rect x="15" y="58" width="100" height="6" rx="2"/>
+      <rect x="15" y="71" width="105" height="6" rx="2"/>
+      <rect x="15" y="84" width="95" height="6" rx="2"/>
+      <rect x="15" y="97" width="110" height="6" rx="2"/>
+      <rect x="15" y="110" width="85" height="6" rx="2"/>
+      <rect x="15" y="123" width="108" height="6" rx="2"/>
+      <rect x="15" y="136" width="92" height="6" rx="2"/>
+      <rect x="15" y="149" width="100" height="6" rx="2"/>
+      <rect x="15" y="162" width="75" height="6" rx="2"/>
+    </g>
+    <text x="70" y="200" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" fill="#f97316">100x context size</text>
+  </g>
+
+  <!-- Arrow 1 -->
+  <g transform="translate(210, 160)">
+    <path d="M 0 10 L 40 10" stroke="url(#orange)" stroke-width="3" fill="none"/>
+    <polygon points="40,10 32,5 32,15" fill="#f97316"/>
+    <text x="20" y="35" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#94a3b8">chunk</text>
+  </g>
+
+  <!-- Step 2: Chunks -->
+  <g transform="translate(260, 90)">
+    <text x="60" y="0" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#94a3b8">Chunks</text>
+    <!-- Chunk boxes -->
+    <rect y="15" width="120" height="35" rx="6" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="60" y="38" text-anchor="middle" font-family="monospace" font-size="11" fill="#60a5fa">chunk_0.txt</text>
+
+    <rect y="58" width="120" height="35" rx="6" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="60" y="81" text-anchor="middle" font-family="monospace" font-size="11" fill="#60a5fa">chunk_1.txt</text>
+
+    <rect y="101" width="120" height="35" rx="6" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="60" y="124" text-anchor="middle" font-family="monospace" font-size="11" fill="#60a5fa">chunk_2.txt</text>
+
+    <rect y="144" width="120" height="35" rx="6" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="60" y="167" text-anchor="middle" font-family="monospace" font-size="11" fill="#60a5fa">chunk_n.txt</text>
+  </g>
+
+  <!-- Arrow 2 -->
+  <g transform="translate(390, 160)">
+    <path d="M 0 10 L 40 10" stroke="url(#blue)" stroke-width="3" fill="none"/>
+    <polygon points="40,10 32,5 32,15" fill="#3b82f6"/>
+    <text x="20" y="35" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#94a3b8">process</text>
+  </g>
+
+  <!-- Step 3: Sub-LLM -->
+  <g transform="translate(440, 100)">
+    <rect width="130" height="140" rx="8" fill="#334155" stroke="#a855f7" stroke-width="2"/>
+    <text x="65" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#c084fc">Sub-LLM</text>
+    <text x="65" y="45" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#94a3b8">(Haiku)</text>
+
+    <!-- Process indicators -->
+    <g transform="translate(20, 60)">
+      <circle cx="10" cy="10" r="6" fill="#22c55e"/>
+      <text x="25" y="14" font-family="monospace" font-size="10" fill="#94a3b8">analyze</text>
+    </g>
+    <g transform="translate(20, 82)">
+      <circle cx="10" cy="10" r="6" fill="#22c55e"/>
+      <text x="25" y="14" font-family="monospace" font-size="10" fill="#94a3b8">extract</text>
+    </g>
+    <g transform="translate(20, 104)">
+      <circle cx="10" cy="10" r="6" fill="#22c55e"/>
+      <text x="25" y="14" font-family="monospace" font-size="10" fill="#94a3b8">summarize</text>
+    </g>
+  </g>
+
+  <!-- Arrow 3 -->
+  <g transform="translate(580, 160)">
+    <path d="M 0 10 L 40 10" stroke="url(#green)" stroke-width="3" fill="none"/>
+    <polygon points="40,10 32,5 32,15" fill="#22c55e"/>
+    <text x="20" y="35" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#94a3b8">aggregate</text>
+  </g>
+
+  <!-- Step 4: Result -->
+  <g transform="translate(630, 110)">
+    <rect width="120" height="120" rx="8" fill="#14532d" stroke="#22c55e" stroke-width="2"/>
+    <text x="60" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#4ade80">Root LLM</text>
+    <text x="60" y="45" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#94a3b8">(Opus/Sonnet)</text>
+
+    <!-- Result icon -->
+    <g transform="translate(35, 55)">
+      <rect width="50" height="45" rx="4" fill="#166534"/>
+      <path d="M 15 15 L 22 22 L 35 8" stroke="#4ade80" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <text x="60" y="115" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" fill="#4ade80">Final Result</text>
+  </g>
+
+  <!-- Bottom features bar -->
+  <g transform="translate(0, 320)">
+    <rect x="30" width="740" height="60" rx="8" fill="#1e293b"/>
+
+    <!-- Feature items -->
+    <g transform="translate(80, 30)">
+      <circle r="8" fill="#f97316"/>
+      <text x="20" y="5" font-family="system-ui, sans-serif" font-size="12" fill="#f8fafc">Semantic Chunking</text>
+    </g>
+
+    <g transform="translate(250, 30)">
+      <circle r="8" fill="#3b82f6"/>
+      <text x="20" y="5" font-family="system-ui, sans-serif" font-size="12" fill="#f8fafc">SQLite Persistence</text>
+    </g>
+
+    <g transform="translate(420, 30)">
+      <circle r="8" fill="#a855f7"/>
+      <text x="20" y="5" font-family="system-ui, sans-serif" font-size="12" fill="#f8fafc">Memory-Mapped I/O</text>
+    </g>
+
+    <g transform="translate(605, 30)">
+      <circle r="8" fill="#22c55e"/>
+      <text x="20" y="5" font-family="system-ui, sans-serif" font-size="12" fill="#f8fafc">Parallel Processing</text>
+    </g>
+  </g>
+</svg>
