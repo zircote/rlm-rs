@@ -1,0 +1,74 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [1.1.2] - 2026-01-19
+
+### Changed
+
+- **Chunking**: Reduced default chunk size from 240,000 to 3,000 characters for better semantic search granularity
+- **Chunking**: Reduced max chunk size from 250,000 to 50,000 characters
+
+## [1.1.1] - 2026-01-19
+
+### Fixed
+
+- **Search**: BM25 scores now display in scientific notation for small values (e.g., `1.60e-6` instead of `0.0000`)
+- **Search**: FTS queries use OR semantics for multi-word searches (more forgiving matching)
+- **Embedding**: Auto-embedding during load now outputs proper JSON when `--format json` is used
+
+## [1.1.0] - 2026-01-19
+
+### Added
+
+- **Search**: Hybrid semantic + BM25 search with Reciprocal Rank Fusion (RRF)
+- **Search**: `search` command with `--mode` option (`hybrid`, `semantic`, `bm25`)
+- **Embedding**: Auto-embedding during `load` command (embeddings generated automatically)
+- **Chunks**: `chunk get` command for pass-by-reference retrieval
+- **Chunks**: `chunk list` command to list chunks for a buffer
+- **Chunks**: `chunk embed` command to generate/regenerate embeddings
+- **Chunks**: `chunk status` command to show embedding status
+
+### Changed
+
+- **Load**: Embeddings are now generated automatically during load (no separate embed step needed)
+
+## [1.0.0] - 2026-01-19
+
+### Added
+
+- **Core**: Initial release with semantic search and pass-by-reference architecture
+- **Chunking**: Fixed, semantic, and parallel chunking strategies
+- **Storage**: SQLite persistence for buffers, chunks, and variables
+- **Search**: Regex search with `grep` command
+- **I/O**: Memory-mapped file handling for large documents
+- **CLI**: JSON output format support for all commands
+
+## [0.2.0] - 2026-01-19
+
+### Added
+
+- **CI/CD**: Release workflow to auto-update Homebrew tap
+
+## [0.1.0] - 2026-01-19
+
+### Added
+
+- Initial implementation of RLM-RS CLI
+- Buffer management (load, list, show, delete, peek)
+- Chunking with configurable strategies
+- Variable storage (context and global)
+- Export functionality
+
+[Unreleased]: https://github.com/zircote/rlm-rs/compare/v1.1.2...HEAD
+[1.1.2]: https://github.com/zircote/rlm-rs/compare/v1.1.1...v1.1.2
+[1.1.1]: https://github.com/zircote/rlm-rs/compare/v1.1.0...v1.1.1
+[1.1.0]: https://github.com/zircote/rlm-rs/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/zircote/rlm-rs/compare/v0.2.0...v1.0.0
+[0.2.0]: https://github.com/zircote/rlm-rs/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/zircote/rlm-rs/releases/tag/v0.1.0
