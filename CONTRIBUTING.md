@@ -10,7 +10,7 @@ Please be respectful and constructive in all interactions. We welcome contributo
 
 ### Prerequisites
 
-- **Rust 1.85+** (2024 edition)
+- **Rust 1.88+** (2024 edition)
 - **cargo-deny** for supply chain security checks
 
 ```bash
