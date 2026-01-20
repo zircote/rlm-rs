@@ -106,3 +106,9 @@ junit.xml
 
 # Project specific
 *.local
+
+# RLM runtime files
+.rlm/
+
+# FastEmbed model cache
+.fastembed_cache/
