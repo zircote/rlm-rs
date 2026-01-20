@@ -10,6 +10,9 @@ Based on the RLM pattern from [arXiv:2512.24601](https://arxiv.org/abs/2512.2460
 
 ## Features
 
+- **Hybrid Semantic Search**: Combined semantic + BM25 search with RRF fusion
+- **Auto-Embedding**: Embeddings generated automatically during load
+- **Pass-by-Reference**: Retrieve chunks by ID for efficient subagent processing
 - **Multiple Chunking Strategies**: Fixed, semantic, and parallel chunking
 - **SQLite State Persistence**: Reliable buffer management across sessions
 - **Regex Search**: Fast content search with context windows
@@ -51,20 +54,23 @@ make install
 # Initialize the database
 rlm-rs init
 
-# Load a large document with semantic chunking
+# Load a large document (auto-generates embeddings)
 rlm-rs load document.md --name docs --chunker semantic
+
+# Search with hybrid semantic + BM25
+rlm-rs search "your query" --buffer docs --top-k 10
+
+# Retrieve chunk by ID (pass-by-reference)
+rlm-rs chunk get 42
 
 # Check status
 rlm-rs status
 
-# Search content
+# Regex search content
 rlm-rs grep docs "pattern" --max-matches 20
 
 # View content slice
 rlm-rs peek docs --start 0 --end 3000
-
-# Write chunks to files for processing
-rlm-rs write-chunks docs --out-dir .rlm/chunks
 ```
 
 ## Commands
@@ -73,7 +79,12 @@ rlm-rs write-chunks docs --out-dir .rlm/chunks
 |---------|-------------|
 | `init` | Initialize the RLM database |
 | `status` | Show current state (buffers, chunks, DB info) |
-| `load` | Load a file into a buffer with chunking |
+| `load` | Load a file into a buffer with chunking (auto-embeds) |
+| `search` | Hybrid semantic + BM25 search across chunks |
+| `chunk get` | Retrieve chunk by ID (pass-by-reference) |
+| `chunk list` | List chunks for a buffer |
+| `chunk embed` | Generate embeddings (or re-embed with --force) |
+| `chunk status` | Show embedding status |
 | `list` | List all buffers |
 | `show` | Show buffer details |
 | `delete` | Delete a buffer |

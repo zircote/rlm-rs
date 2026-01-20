@@ -95,7 +95,9 @@ rlm-rs reset --yes
 
 #### `load`
 
-Load a file into a buffer with automatic chunking.
+Load a file into a buffer with automatic chunking and embedding generation.
+
+Embeddings are automatically generated during load for semantic search support.
 
 ```bash
 rlm-rs load [OPTIONS] <FILE>
@@ -111,7 +113,7 @@ rlm-rs load [OPTIONS] <FILE>
 |--------|---------|-------------|
 | `-n, --name <NAME>` | filename | Custom name for the buffer |
 | `-c, --chunker <STRATEGY>` | `semantic` | Chunking strategy: `fixed`, `semantic`, `parallel` |
-| `--chunk-size <SIZE>` | `40000` | Chunk size in characters (~10k tokens) |
+| `--chunk-size <SIZE>` | `240000` | Chunk size in characters (~60k tokens) |
 | `--overlap <SIZE>` | `500` | Overlap between chunks in characters |
 
 **Chunking Strategies:**
@@ -367,7 +369,7 @@ rlm-rs chunk-indices [OPTIONS] <BUFFER>
 **Options:**
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--chunk-size <SIZE>` | `40000` | Chunk size in characters |
+| `--chunk-size <SIZE>` | `240000` | Chunk size in characters |
 | `--overlap <SIZE>` | `500` | Overlap between chunks |
 
 **Examples:**
@@ -398,7 +400,7 @@ rlm-rs write-chunks [OPTIONS] <BUFFER>
 | Option | Default | Description |
 |--------|---------|-------------|
 | `-o, --out-dir <DIR>` | `.rlm/chunks` | Output directory |
-| `--chunk-size <SIZE>` | `40000` | Chunk size in characters |
+| `--chunk-size <SIZE>` | `240000` | Chunk size in characters |
 | `--overlap <SIZE>` | `500` | Overlap between chunks |
 | `--prefix <PREFIX>` | `chunk` | Filename prefix |
 
@@ -415,6 +417,179 @@ rlm-rs write-chunks document.md --out-dir ./output --prefix doc
 
 # Custom chunk size for smaller chunks
 rlm-rs write-chunks large.txt --chunk-size 20000 --overlap 500
+```
+
+---
+
+### Search Operations
+
+#### `search`
+
+Search chunks using hybrid semantic + BM25 search with Reciprocal Rank Fusion (RRF).
+
+```bash
+rlm-rs search [OPTIONS] <QUERY>
+```
+
+**Arguments:**
+| Argument | Description |
+|----------|-------------|
+| `<QUERY>` | Search query text |
+
+**Options:**
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-k, --top-k <N>` | `10` | Maximum number of results |
+| `-t, --threshold <SCORE>` | `0.3` | Minimum similarity threshold (0.0-1.0) |
+| `-m, --mode <MODE>` | `hybrid` | Search mode: `hybrid`, `semantic`, `bm25` |
+| `--rrf-k <K>` | `60` | RRF k parameter for rank fusion |
+| `-b, --buffer <BUFFER>` | | Filter by buffer ID or name |
+
+**Search Modes:**
+
+| Mode | Description |
+|------|-------------|
+| `hybrid` | Combines semantic and BM25 scores using RRF (recommended) |
+| `semantic` | Vector similarity search using embeddings |
+| `bm25` | Traditional full-text search with BM25 scoring |
+
+**Examples:**
+```bash
+# Basic hybrid search
+rlm-rs search "database connection errors"
+
+# Search with more results
+rlm-rs search "API endpoints" --top-k 20
+
+# Semantic-only search
+rlm-rs search "authentication flow" --mode semantic
+
+# Search specific buffer
+rlm-rs search "error handling" --buffer logs
+
+# JSON output for programmatic use
+rlm-rs --format json search "your query" --top-k 10
+```
+
+**Output (JSON format):**
+```json
+{
+  "count": 2,
+  "mode": "hybrid",
+  "query": "your query",
+  "results": [
+    {"chunk_id": 42, "score": 0.0328, "semantic_score": 0.0499, "bm25_score": 1.6e-6},
+    {"chunk_id": 17, "score": 0.0323, "semantic_score": 0.0457, "bm25_score": 1.2e-6}
+  ]
+}
+```
+
+**Extract chunk IDs:** `jq -r '.results[].chunk_id'`
+
+---
+
+### Chunk Operations
+
+#### `chunk get`
+
+Get a chunk by ID (primary pass-by-reference mechanism for subagents).
+
+```bash
+rlm-rs chunk get [OPTIONS] <ID>
+```
+
+**Arguments:**
+| Argument | Description |
+|----------|-------------|
+| `<ID>` | Chunk ID (globally unique across all buffers) |
+
+**Options:**
+| Option | Description |
+|--------|-------------|
+| `-m, --metadata` | Include metadata in output |
+
+**Examples:**
+```bash
+# Get chunk content
+rlm-rs chunk get 42
+
+# Get chunk with metadata (JSON)
+rlm-rs --format json chunk get 42 --metadata
+```
+
+---
+
+#### `chunk list`
+
+List all chunks for a buffer.
+
+```bash
+rlm-rs chunk list <BUFFER>
+```
+
+**Arguments:**
+| Argument | Description |
+|----------|-------------|
+| `<BUFFER>` | Buffer ID or name |
+
+**Examples:**
+```bash
+# List chunks for buffer
+rlm-rs chunk list docs
+
+# JSON output
+rlm-rs --format json chunk list docs
+```
+
+---
+
+#### `chunk embed`
+
+Generate embeddings for buffer chunks. Note: Embeddings are automatically generated during `load`, so this is typically only needed with `--force` to re-embed.
+
+```bash
+rlm-rs chunk embed [OPTIONS] <BUFFER>
+```
+
+**Arguments:**
+| Argument | Description |
+|----------|-------------|
+| `<BUFFER>` | Buffer ID or name |
+
+**Options:**
+| Option | Description |
+|--------|-------------|
+| `-f, --force` | Force re-embedding even if embeddings exist |
+
+**Examples:**
+```bash
+# Check if embeddings exist (will report "already embedded")
+rlm-rs chunk embed docs
+
+# Force re-embedding
+rlm-rs chunk embed docs --force
+```
+
+---
+
+#### `chunk status`
+
+Show embedding status for all buffers.
+
+```bash
+rlm-rs chunk status
+```
+
+**Example Output:**
+```
+Embedding Status
+================
+
+Total: 42/42 chunks embedded
+
+Buffer           ID    Chunks  Embedded
+docs             1     15      15
+logs             2     27      27
 ```
 
 ---
@@ -493,7 +668,7 @@ rlm-rs global project_name --delete
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `chunk_size` | 40,000 chars | ~10,000 tokens (fits Claude's 25k read limit) |
+| `chunk_size` | 240,000 chars | ~60,000 tokens (utilizes Claude's context window) |
 | `overlap` | 500 chars | Context continuity between chunks |
 | `max_chunk_size` | 250,000 chars | Maximum allowed chunk size |
 
