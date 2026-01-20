@@ -158,10 +158,10 @@ fn open_storage(db_path: &std::path::Path) -> Result<SqliteStorage> {
 /// Resolves a buffer identifier (ID or name) to a buffer.
 fn resolve_buffer(storage: &SqliteStorage, identifier: &str) -> Result<Buffer> {
     // Try as ID first
-    if let Ok(id) = identifier.parse::<i64>() {
-        if let Some(buffer) = storage.get_buffer(id)? {
-            return Ok(buffer);
-        }
+    if let Ok(id) = identifier.parse::<i64>()
+        && let Some(buffer) = storage.get_buffer(id)?
+    {
+        return Ok(buffer);
     }
 
     // Try as name
@@ -187,12 +187,12 @@ fn cmd_init(db_path: &std::path::Path, force: bool, _format: OutputFormat) -> Re
     }
 
     // Create parent directory if needed
-    if let Some(parent) = db_path.parent() {
-        if !parent.exists() {
-            std::fs::create_dir_all(parent).map_err(|e| {
-                CommandError::ExecutionFailed(format!("Failed to create directory: {e}"))
-            })?;
-        }
+    if let Some(parent) = db_path.parent()
+        && !parent.exists()
+    {
+        std::fs::create_dir_all(parent).map_err(|e| {
+            CommandError::ExecutionFailed(format!("Failed to create directory: {e}"))
+        })?;
     }
 
     // If force, delete existing
@@ -754,6 +754,8 @@ fn format_search_results(
                 "results": results.iter().map(|r| {
                     serde_json::json!({
                         "chunk_id": r.chunk_id,
+                        "buffer_id": r.buffer_id,
+                        "index": r.index,
                         "score": r.score,
                         "semantic_score": r.semantic_score,
                         "bm25_score": r.bm25_score
@@ -948,11 +950,11 @@ fn cmd_chunk_embed(
         let chunks = storage.get_chunks(buffer_id)?;
         let mut all_embedded = true;
         for chunk in &chunks {
-            if let Some(cid) = chunk.id {
-                if !storage.has_embedding(cid)? {
-                    all_embedded = false;
-                    break;
-                }
+            if let Some(cid) = chunk.id
+                && !storage.has_embedding(cid)?
+            {
+                all_embedded = false;
+                break;
             }
         }
         if all_embedded && !chunks.is_empty() {
@@ -1005,10 +1007,10 @@ fn cmd_chunk_status(db_path: &std::path::Path, format: OutputFormat) -> Result<S
 
         let mut embedded_count = 0;
         for chunk in &chunks {
-            if let Some(cid) = chunk.id {
-                if storage.has_embedding(cid)? {
-                    embedded_count += 1;
-                }
+            if let Some(cid) = chunk.id
+                && storage.has_embedding(cid)?
+            {
+                embedded_count += 1;
             }
         }
 

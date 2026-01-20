@@ -26,12 +26,14 @@ use unicode_segmentation::UnicodeSegmentation;
 /// assert_eq!(find_char_boundary(s, 7), 6); // Middle of '世', backs up
 /// ```
 #[must_use]
-pub fn find_char_boundary(s: &str, pos: usize) -> usize {
+pub const fn find_char_boundary(s: &str, pos: usize) -> usize {
     if pos >= s.len() {
         return s.len();
     }
+    let bytes = s.as_bytes();
     let mut boundary = pos;
-    while !s.is_char_boundary(boundary) && boundary > 0 {
+    // UTF-8 continuation bytes start with 10xxxxxx (0x80-0xBF)
+    while boundary > 0 && (bytes[boundary] & 0xC0) == 0x80 {
         boundary -= 1;
     }
     boundary
@@ -48,12 +50,14 @@ pub fn find_char_boundary(s: &str, pos: usize) -> usize {
 ///
 /// A byte position that is a valid UTF-8 character boundary.
 #[must_use]
-pub fn find_char_boundary_forward(s: &str, pos: usize) -> usize {
+pub const fn find_char_boundary_forward(s: &str, pos: usize) -> usize {
     if pos >= s.len() {
         return s.len();
     }
+    let bytes = s.as_bytes();
     let mut boundary = pos;
-    while !s.is_char_boundary(boundary) && boundary < s.len() {
+    // UTF-8 continuation bytes start with 10xxxxxx (0x80-0xBF)
+    while boundary < bytes.len() && (bytes[boundary] & 0xC0) == 0x80 {
         boundary += 1;
     }
     boundary

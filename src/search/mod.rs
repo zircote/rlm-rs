@@ -21,6 +21,10 @@ pub const DEFAULT_TOP_K: usize = 10;
 pub struct SearchResult {
     /// Chunk ID.
     pub chunk_id: i64,
+    /// Buffer ID this chunk belongs to.
+    pub buffer_id: i64,
+    /// Sequential index within the buffer (0-based, for temporal ordering).
+    pub index: usize,
     /// Combined RRF score (higher is better).
     pub score: f64,
     /// Semantic similarity score (if available).
@@ -53,6 +57,32 @@ impl Default for SearchConfig {
             use_semantic: true,
             use_bm25: true,
         }
+    }
+}
+
+impl SearchResult {
+    /// Creates a new search result, looking up chunk metadata from storage.
+    ///
+    /// Returns `None` if the chunk cannot be found.
+    fn from_chunk_id(
+        storage: &SqliteStorage,
+        chunk_id: i64,
+        score: f64,
+        semantic_score: Option<f32>,
+        bm25_score: Option<f64>,
+    ) -> Option<Self> {
+        storage
+            .get_chunk(chunk_id)
+            .ok()
+            .flatten()
+            .map(|chunk| Self {
+                chunk_id,
+                buffer_id: chunk.buffer_id,
+                index: chunk.index,
+                score,
+                semantic_score,
+                bm25_score,
+            })
     }
 }
 
@@ -135,11 +165,8 @@ pub fn hybrid_search(
         return Ok(bm25_results
             .into_iter()
             .take(config.top_k)
-            .map(|(chunk_id, score)| SearchResult {
-                chunk_id,
-                score,
-                semantic_score: None,
-                bm25_score: Some(score),
+            .filter_map(|(chunk_id, score)| {
+                SearchResult::from_chunk_id(storage, chunk_id, score, None, Some(score))
             })
             .collect());
     }
@@ -148,11 +175,8 @@ pub fn hybrid_search(
         return Ok(semantic_results
             .into_iter()
             .take(config.top_k)
-            .map(|(chunk_id, score)| SearchResult {
-                chunk_id,
-                score: f64::from(score),
-                semantic_score: Some(score),
-                bm25_score: None,
+            .filter_map(|(chunk_id, score)| {
+                SearchResult::from_chunk_id(storage, chunk_id, f64::from(score), Some(score), None)
             })
             .collect());
     }
@@ -173,11 +197,14 @@ pub fn hybrid_search(
     let results: Vec<SearchResult> = fused
         .into_iter()
         .take(config.top_k)
-        .map(|(chunk_id, rrf_score)| SearchResult {
-            chunk_id,
-            score: rrf_score,
-            semantic_score: semantic_map.get(&chunk_id).copied(),
-            bm25_score: bm25_map.get(&chunk_id).copied(),
+        .filter_map(|(chunk_id, rrf_score)| {
+            SearchResult::from_chunk_id(
+                storage,
+                chunk_id,
+                rrf_score,
+                semantic_map.get(&chunk_id).copied(),
+                bm25_map.get(&chunk_id).copied(),
+            )
         })
         .collect();
 
@@ -271,11 +298,8 @@ pub fn search_bm25(
 
     Ok(results
         .into_iter()
-        .map(|(chunk_id, score)| SearchResult {
-            chunk_id,
-            score,
-            semantic_score: None,
-            bm25_score: Some(score),
+        .filter_map(|(chunk_id, score)| {
+            SearchResult::from_chunk_id(storage, chunk_id, score, None, Some(score))
         })
         .collect())
 }
@@ -343,10 +367,10 @@ pub fn buffer_fully_embedded(storage: &SqliteStorage, buffer_id: i64) -> Result<
     let mut embedded_count = 0;
 
     for chunk in &chunks {
-        if let Some(id) = chunk.id {
-            if storage.has_embedding(id)? {
-                embedded_count += 1;
-            }
+        if let Some(id) = chunk.id
+            && storage.has_embedding(id)?
+        {
+            embedded_count += 1;
         }
     }
 

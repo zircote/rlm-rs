@@ -236,7 +236,7 @@ impl Context {
 
     /// Returns the number of active buffers.
     #[must_use]
-    pub fn buffer_count(&self) -> usize {
+    pub const fn buffer_count(&self) -> usize {
         self.buffer_ids.len()
     }
 

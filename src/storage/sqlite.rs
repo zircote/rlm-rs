@@ -50,11 +50,10 @@ impl SqliteStorage {
         let path = path.as_ref().to_path_buf();
 
         // Ensure parent directory exists
-        if let Some(parent) = path.parent() {
-            if !parent.exists() {
-                std::fs::create_dir_all(parent)
-                    .map_err(|e| StorageError::Database(e.to_string()))?;
-            }
+        if let Some(parent) = path.parent()
+            && !parent.exists()
+        {
+            std::fs::create_dir_all(parent).map_err(|e| StorageError::Database(e.to_string()))?;
         }
 
         let conn = Connection::open(&path).map_err(StorageError::from)?;
@@ -138,20 +137,17 @@ impl Storage for SqliteStorage {
                 .execute_batch(SCHEMA_SQL)
                 .map_err(StorageError::from)?;
             self.set_schema_version(CURRENT_SCHEMA_VERSION)?;
-        } else {
-            // Check for migrations
-            if let Some(current) = self.get_schema_version()? {
-                if current < CURRENT_SCHEMA_VERSION {
-                    // Run migrations
-                    let migrations = crate::storage::schema::get_migrations_from(current);
-                    for migration in migrations {
-                        self.conn
-                            .execute_batch(migration.sql)
-                            .map_err(|e| StorageError::Migration(e.to_string()))?;
-                    }
-                    self.set_schema_version(CURRENT_SCHEMA_VERSION)?;
-                }
+        } else if let Some(current) = self.get_schema_version()?
+            && current < CURRENT_SCHEMA_VERSION
+        {
+            // Run migrations
+            let migrations = crate::storage::schema::get_migrations_from(current);
+            for migration in migrations {
+                self.conn
+                    .execute_batch(migration.sql)
+                    .map_err(|e| StorageError::Migration(e.to_string()))?;
             }
+            self.set_schema_version(CURRENT_SCHEMA_VERSION)?;
         }
 
         Ok(())

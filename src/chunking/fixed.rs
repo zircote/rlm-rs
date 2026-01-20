@@ -196,10 +196,11 @@ impl Chunker for FixedChunker {
             chunks.push(chunk);
 
             // Check max chunks limit
-            if let Some(meta) = metadata {
-                if meta.max_chunks > 0 && chunks.len() >= meta.max_chunks {
-                    break;
-                }
+            if let Some(meta) = metadata
+                && meta.max_chunks > 0
+                && chunks.len() >= meta.max_chunks
+            {
+                break;
             }
 
             // Move to next chunk

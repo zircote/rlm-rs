@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Search**: Search results now include `index` (document position) and `buffer_id` fields for temporal ordering
+
+### Fixed
+
+- **Search**: Escape FTS5 special characters in search queries to prevent syntax errors
+- **Chunking**: Validate UTF-8 boundaries in semantic chunker search window to prevent panics on multi-byte characters
+
+### Changed
+
+- **Build**: Bump MSRV to 1.88
+
 ## [1.1.2] - 2026-01-19
 
 ### Changed

@@ -237,10 +237,11 @@ impl Chunker for SemanticChunker {
             chunks.push(chunk);
 
             // Check max chunks limit
-            if let Some(meta) = metadata {
-                if meta.max_chunks > 0 && chunks.len() >= meta.max_chunks {
-                    break;
-                }
+            if let Some(meta) = metadata
+                && meta.max_chunks > 0
+                && chunks.len() >= meta.max_chunks
+            {
+                break;
             }
 
             // Move to next chunk
@@ -264,33 +265,31 @@ impl Chunker for SemanticChunker {
         }
 
         // Merge tiny final chunk if it's too small
-        if chunks.len() > 1 {
-            if let Some(last) = chunks.last() {
-                if last.size() < self.min_chunk_size {
-                    if let Some(second_last) = chunks.get(chunks.len() - 2) {
-                        // Merge into previous chunk
-                        let merged_content = format!(
-                            "{}{}",
-                            second_last.content,
-                            &text[second_last.byte_range.end..last.byte_range.end]
-                        );
-                        let merged_range = second_last.byte_range.start..last.byte_range.end;
+        if chunks.len() > 1
+            && let Some(last) = chunks.last()
+            && last.size() < self.min_chunk_size
+            && let Some(second_last) = chunks.get(chunks.len() - 2)
+        {
+            // Merge into previous chunk
+            let merged_content = format!(
+                "{}{}",
+                second_last.content,
+                &text[second_last.byte_range.end..last.byte_range.end]
+            );
+            let merged_range = second_last.byte_range.start..last.byte_range.end;
 
-                        chunks.pop(); // Remove last
-                        chunks.pop(); // Remove second last
+            chunks.pop(); // Remove last
+            chunks.pop(); // Remove second last
 
-                        let mut merged = Chunk::with_strategy(
-                            buffer_id,
-                            merged_content,
-                            merged_range,
-                            chunks.len(),
-                            self.name(),
-                        );
-                        merged.set_token_count(merged.estimate_tokens());
-                        chunks.push(merged);
-                    }
-                }
-            }
+            let mut merged = Chunk::with_strategy(
+                buffer_id,
+                merged_content,
+                merged_range,
+                chunks.len(),
+                self.name(),
+            );
+            merged.set_token_count(merged.estimate_tokens());
+            chunks.push(merged);
         }
 
         Ok(chunks)
@@ -310,12 +309,15 @@ impl Chunker for SemanticChunker {
 }
 
 /// Finds a valid UTF-8 character boundary at or before the given position.
-fn find_char_boundary(s: &str, pos: usize) -> usize {
+const fn find_char_boundary(s: &str, pos: usize) -> usize {
     if pos >= s.len() {
         return s.len();
     }
+    let bytes = s.as_bytes();
     let mut boundary = pos;
-    while !s.is_char_boundary(boundary) && boundary > 0 {
+    // UTF-8 continuation bytes start with 10xxxxxx (0x80-0xBF)
+    // We need to find a byte that doesn't start with 10xxxxxx
+    while boundary > 0 && (bytes[boundary] & 0xC0) == 0x80 {
         boundary -= 1;
     }
     boundary

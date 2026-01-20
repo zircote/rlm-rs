@@ -250,13 +250,13 @@ pub fn write_file<P: AsRef<Path>>(path: P, content: &str) -> Result<()> {
     let path_str = path_ref.to_string_lossy().to_string();
 
     // Create parent directories
-    if let Some(parent) = path_ref.parent() {
-        if !parent.exists() {
-            std::fs::create_dir_all(parent).map_err(|e| IoError::DirectoryFailed {
-                path: parent.to_string_lossy().to_string(),
-                reason: e.to_string(),
-            })?;
-        }
+    if let Some(parent) = path_ref.parent()
+        && !parent.exists()
+    {
+        std::fs::create_dir_all(parent).map_err(|e| IoError::DirectoryFailed {
+            path: parent.to_string_lossy().to_string(),
+            reason: e.to_string(),
+        })?;
     }
 
     std::fs::write(path_ref, content).map_err(|e| IoError::WriteFailed {

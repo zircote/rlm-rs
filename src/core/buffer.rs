@@ -155,7 +155,7 @@ impl Buffer {
 
     /// Returns the size of the buffer in bytes.
     #[must_use]
-    pub fn size(&self) -> usize {
+    pub const fn size(&self) -> usize {
         self.content.len()
     }
 
@@ -218,7 +218,7 @@ impl Buffer {
 
     /// Checks if the buffer is empty.
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.content.is_empty()
     }
 
@@ -228,12 +228,11 @@ impl Buffer {
         if let Some(ref name) = self.name {
             return name.clone();
         }
-        if let Some(ref path) = self.source {
-            if let Some(name) = path.file_name() {
-                if let Some(s) = name.to_str() {
-                    return s.to_string();
-                }
-            }
+        if let Some(ref path) = self.source
+            && let Some(name) = path.file_name()
+            && let Some(s) = name.to_str()
+        {
+            return s.to_string();
         }
         if let Some(id) = self.id {
             return format!("buffer-{id}");
@@ -266,13 +265,14 @@ fn infer_content_type(path: &std::path::Path) -> Option<String> {
 }
 
 /// Finds a valid UTF-8 character boundary at or before the given position.
-fn find_char_boundary(s: &str, pos: usize) -> usize {
+const fn find_char_boundary(s: &str, pos: usize) -> usize {
     if pos >= s.len() {
         return s.len();
     }
-    // Walk backwards to find a valid char boundary
+    let bytes = s.as_bytes();
     let mut boundary = pos;
-    while !s.is_char_boundary(boundary) && boundary > 0 {
+    // UTF-8 continuation bytes start with 10xxxxxx (0x80-0xBF)
+    while boundary > 0 && (bytes[boundary] & 0xC0) == 0x80 {
         boundary -= 1;
     }
     boundary

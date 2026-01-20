@@ -129,7 +129,7 @@ impl Chunk {
 
     /// Returns the size of the chunk in bytes.
     #[must_use]
-    pub fn size(&self) -> usize {
+    pub const fn size(&self) -> usize {
         self.content.len()
     }
 
@@ -141,7 +141,7 @@ impl Chunk {
 
     /// Checks if the chunk is empty.
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.content.is_empty()
     }
 
@@ -166,7 +166,7 @@ impl Chunk {
     ///
     /// Uses the approximation of ~4 characters per token.
     #[must_use]
-    pub fn estimate_tokens(&self) -> usize {
+    pub const fn estimate_tokens(&self) -> usize {
         // Common approximation: ~4 chars per token
         self.content.len().div_ceil(4)
     }
@@ -325,12 +325,14 @@ impl ChunkBuilder {
 }
 
 /// Finds a valid UTF-8 character boundary at or before the given position.
-fn find_char_boundary(s: &str, pos: usize) -> usize {
+const fn find_char_boundary(s: &str, pos: usize) -> usize {
     if pos >= s.len() {
         return s.len();
     }
+    let bytes = s.as_bytes();
     let mut boundary = pos;
-    while !s.is_char_boundary(boundary) && boundary > 0 {
+    // UTF-8 continuation bytes start with 10xxxxxx (0x80-0xBF)
+    while boundary > 0 && (bytes[boundary] & 0xC0) == 0x80 {
         boundary -= 1;
     }
     boundary
