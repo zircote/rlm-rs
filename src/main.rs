@@ -6,6 +6,7 @@
 
 use clap::Parser;
 use rlm_rs::cli::{Cli, execute};
+use std::io::{self, Write};
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
@@ -14,7 +15,13 @@ fn main() -> ExitCode {
     match execute(&cli) {
         Ok(output) => {
             if !output.is_empty() {
-                print!("{output}");
+                // Handle broken pipe gracefully (e.g., when piped to `head` or `jq`)
+                if let Err(e) = write!(io::stdout(), "{output}") {
+                    if e.kind() != io::ErrorKind::BrokenPipe {
+                        eprintln!("Error writing to stdout: {e}");
+                        return ExitCode::FAILURE;
+                    }
+                }
             }
             ExitCode::SUCCESS
         }
