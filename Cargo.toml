@@ -1,6 +1,6 @@
 [package]
 name = "rlm-rs"
-version = "1.2.0"
+version = "1.2.1"
 edition = "2024"
 rust-version = "1.88"
 description = "Recursive Language Model (RLM) REPL for Claude Code - handles long-context tasks via chunking and recursive sub-LLM calls"
@@ -117,7 +117,7 @@ must_use_candidate = "allow"
 redundant_pub_crate = "allow"
 
 [features]
-default = []
+default = ["fastembed-embeddings"]
 # FastEmbed semantic embeddings (ONNX-based, all-MiniLM-L6-v2, 384 dimensions)
 fastembed-embeddings = ["dep:fastembed"]
 # usearch HNSW vector search (native implementation)
