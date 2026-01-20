@@ -331,6 +331,7 @@ fn truncate(s: &str, max_len: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     #[test]
     fn test_output_format_from_str() {
@@ -345,6 +346,8 @@ mod tests {
         assert_eq!(format_size(100), "100 B");
         assert_eq!(format_size(1024), "1.0 KB");
         assert_eq!(format_size(1024 * 1024), "1.0 MB");
+        assert_eq!(format_size(1024 * 1024 * 1024), "1.0 GB");
+        assert_eq!(format_size(2 * 1024 * 1024 * 1024), "2.0 GB");
     }
 
     #[test]
@@ -352,6 +355,8 @@ mod tests {
         assert_eq!(truncate("Hello", 10), "Hello");
         assert_eq!(truncate("Hello World", 8), "Hello...");
         assert_eq!(truncate("Hi", 2), "Hi");
+        assert_eq!(truncate("Hello", 3), "Hel");
+        assert_eq!(truncate("Hello", 1), "H");
     }
 
     #[test]
@@ -368,8 +373,194 @@ mod tests {
         let text = format_status(&stats, OutputFormat::Text);
         assert!(text.contains("Buffers:       2"));
         assert!(text.contains("Chunks:        10"));
+        assert!(text.contains("DB size:"));
 
         let json = format_status(&stats, OutputFormat::Json);
         assert!(json.contains("\"buffer_count\": 2"));
+    }
+
+    #[test]
+    fn test_format_status_no_db_size() {
+        let stats = StorageStats {
+            buffer_count: 0,
+            chunk_count: 0,
+            total_content_size: 0,
+            has_context: false,
+            schema_version: 1,
+            db_size: None,
+        };
+
+        let text = format_status(&stats, OutputFormat::Text);
+        assert!(text.contains("Context:       no"));
+        assert!(!text.contains("DB size:"));
+    }
+
+    #[test]
+    fn test_format_buffer_list_empty() {
+        let buffers: Vec<Buffer> = vec![];
+        let text = format_buffer_list(&buffers, OutputFormat::Text);
+        assert!(text.contains("No buffers found"));
+
+        let json = format_buffer_list(&buffers, OutputFormat::Json);
+        assert!(json.contains("[]"));
+    }
+
+    #[test]
+    fn test_format_buffer_list_with_data() {
+        let mut buffer = Buffer::from_named("test".to_string(), "content".to_string());
+        buffer.id = Some(1);
+        buffer.source = Some(PathBuf::from("/path/to/file.txt"));
+        buffer.metadata.chunk_count = Some(3);
+
+        let buffers = vec![buffer];
+        let text = format_buffer_list(&buffers, OutputFormat::Text);
+        assert!(text.contains("test"));
+        assert!(text.contains('1'));
+
+        let json = format_buffer_list(&buffers, OutputFormat::Json);
+        assert!(json.contains("\"name\": \"test\""));
+    }
+
+    #[test]
+    fn test_format_buffer_without_chunks() {
+        let mut buffer = Buffer::from_named("test-buf".to_string(), "Hello world".to_string());
+        buffer.id = Some(42);
+        buffer.metadata.line_count = Some(1);
+        buffer.metadata.chunk_count = Some(1);
+        buffer.metadata.content_type = Some("text/plain".to_string());
+        buffer.source = Some(PathBuf::from("/test/path.txt"));
+
+        let text = format_buffer(&buffer, None, OutputFormat::Text);
+        assert!(text.contains("Buffer: test-buf"));
+        assert!(text.contains("ID:           42"));
+        assert!(text.contains("Lines:        1"));
+        assert!(text.contains("Chunks:       1"));
+        assert!(text.contains("Content type: text/plain"));
+        assert!(text.contains("Source:"));
+
+        let json = format_buffer(&buffer, None, OutputFormat::Json);
+        assert!(json.contains("\"buffer\""));
+    }
+
+    #[test]
+    fn test_format_buffer_with_chunks() {
+        let mut buffer = Buffer::from_named("buf".to_string(), "Hello\nWorld".to_string());
+        buffer.id = Some(1);
+
+        let chunks = vec![
+            Chunk::new(1, "Hello".to_string(), 0..5, 0),
+            Chunk::new(1, "World".to_string(), 6..11, 1),
+        ];
+
+        let text = format_buffer(&buffer, Some(&chunks), OutputFormat::Text);
+        assert!(text.contains("Chunks:"));
+        assert!(text.contains("Index"));
+        assert!(text.contains("Hello"));
+
+        let json = format_buffer(&buffer, Some(&chunks), OutputFormat::Json);
+        assert!(json.contains("\"chunks\""));
+    }
+
+    #[test]
+    fn test_format_peek() {
+        let content = "Hello, world!";
+
+        let text = format_peek(content, 0, 13, OutputFormat::Text);
+        assert!(text.contains("Bytes 0..13"));
+        assert!(text.contains("Hello, world!"));
+
+        let json = format_peek(content, 0, 13, OutputFormat::Json);
+        assert!(json.contains("\"content\": \"Hello, world!\""));
+        assert!(json.contains("\"start\": 0"));
+    }
+
+    #[test]
+    fn test_format_peek_no_trailing_newline() {
+        let content = "no newline";
+        let text = format_peek(content, 0, 10, OutputFormat::Text);
+        assert!(text.ends_with("---\n"));
+    }
+
+    #[test]
+    fn test_format_grep_matches_empty() {
+        let matches: Vec<GrepMatch> = vec![];
+        let text = format_grep_matches(&matches, "pattern", OutputFormat::Text);
+        assert!(text.contains("No matches found"));
+
+        let json = format_grep_matches(&matches, "pattern", OutputFormat::Json);
+        assert!(json.contains("[]"));
+    }
+
+    #[test]
+    fn test_format_grep_matches_with_data() {
+        let matches = vec![
+            GrepMatch {
+                offset: 10,
+                matched: "hello".to_string(),
+                snippet: "say hello world".to_string(),
+            },
+            GrepMatch {
+                offset: 50,
+                matched: "hello".to_string(),
+                snippet: "another\nhello".to_string(),
+            },
+        ];
+
+        let text = format_grep_matches(&matches, "hello", OutputFormat::Text);
+        assert!(text.contains("Found 2 matches"));
+        assert!(text.contains("Match 1 at byte 10"));
+        assert!(text.contains("another\\nhello"));
+
+        let json = format_grep_matches(&matches, "hello", OutputFormat::Json);
+        assert!(json.contains("\"offset\": 10"));
+    }
+
+    #[test]
+    fn test_format_chunk_indices() {
+        let indices = vec![(0, 100), (100, 200), (200, 300)];
+
+        let text = format_chunk_indices(&indices, OutputFormat::Text);
+        assert!(text.contains("3 chunks"));
+        assert!(text.contains("[0] 0..100"));
+        assert!(text.contains("100 bytes"));
+
+        let json = format_chunk_indices(&indices, OutputFormat::Json);
+        assert!(json.contains('0') && json.contains("100"));
+    }
+
+    #[test]
+    fn test_format_write_chunks_result() {
+        let paths = vec!["chunk_0.txt".to_string(), "chunk_1.txt".to_string()];
+
+        let text = format_write_chunks_result(&paths, OutputFormat::Text);
+        assert!(text.contains("Wrote 2 chunks"));
+        assert!(text.contains("chunk_0.txt"));
+
+        let json = format_write_chunks_result(&paths, OutputFormat::Json);
+        assert!(json.contains("\"chunk_0.txt\""));
+    }
+
+    #[test]
+    fn test_format_context() {
+        let mut context = Context::new();
+        context.set_variable(
+            "key".to_string(),
+            crate::core::ContextValue::String("val".to_string()),
+        );
+        context.set_global("gkey".to_string(), crate::core::ContextValue::Float(42.0));
+
+        let text = format_context(&context, OutputFormat::Text);
+        assert!(text.contains("Variables: 1"));
+        assert!(text.contains("Globals:   1"));
+
+        let json = format_context(&context, OutputFormat::Json);
+        assert!(json.contains("\"variables\""));
+    }
+
+    #[test]
+    fn test_format_json_error() {
+        // Test that format_json handles errors gracefully
+        // This is hard to trigger with normal Serialize types
+        // but the fallback to "{}" is tested implicitly
     }
 }

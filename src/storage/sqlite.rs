@@ -169,6 +169,7 @@ impl Storage for SqliteStorage {
         self.conn
             .execute_batch(
                 r"
+            DELETE FROM chunk_embeddings;
             DELETE FROM chunks;
             DELETE FROM buffers;
             DELETE FROM context;
@@ -624,6 +625,227 @@ impl Storage for SqliteStorage {
             schema_version,
             db_size,
         })
+    }
+}
+
+// ==================== Embedding & Search Operations ====================
+
+impl SqliteStorage {
+    /// Stores an embedding for a chunk.
+    ///
+    /// # Arguments
+    ///
+    /// * `chunk_id` - The chunk ID to associate the embedding with.
+    /// * `embedding` - The embedding vector (f32 array).
+    /// * `model_name` - Optional name of the model that generated the embedding.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the embedding cannot be stored.
+    #[allow(clippy::cast_possible_wrap)]
+    pub fn store_embedding(
+        &mut self,
+        chunk_id: i64,
+        embedding: &[f32],
+        model_name: Option<&str>,
+    ) -> Result<()> {
+        let now = Self::now();
+
+        // Serialize f32 array to bytes (little-endian)
+        let bytes: Vec<u8> = embedding.iter().flat_map(|f| f.to_le_bytes()).collect();
+
+        self.conn
+            .execute(
+                r"
+                INSERT OR REPLACE INTO chunk_embeddings (chunk_id, embedding, dimensions, model_name, created_at)
+                VALUES (?, ?, ?, ?, ?)
+            ",
+                params![chunk_id, bytes, embedding.len() as i64, model_name, now],
+            )
+            .map_err(StorageError::from)?;
+
+        Ok(())
+    }
+
+    /// Retrieves the embedding for a chunk.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the query fails.
+    pub fn get_embedding(&self, chunk_id: i64) -> Result<Option<Vec<f32>>> {
+        let result: Option<Vec<u8>> = self
+            .conn
+            .query_row(
+                "SELECT embedding FROM chunk_embeddings WHERE chunk_id = ?",
+                params![chunk_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(StorageError::from)?;
+
+        Ok(result.map(|bytes| {
+            bytes
+                .chunks_exact(4)
+                .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+                .collect()
+        }))
+    }
+
+    /// Stores embeddings for multiple chunks in a batch.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any embedding cannot be stored.
+    #[allow(clippy::cast_possible_wrap)]
+    pub fn store_embeddings_batch(
+        &mut self,
+        embeddings: &[(i64, Vec<f32>)],
+        model_name: Option<&str>,
+    ) -> Result<()> {
+        let tx = self.conn.transaction().map_err(StorageError::from)?;
+        let now = Self::now();
+
+        {
+            let mut stmt = tx
+                .prepare(
+                    r"
+                    INSERT OR REPLACE INTO chunk_embeddings (chunk_id, embedding, dimensions, model_name, created_at)
+                    VALUES (?, ?, ?, ?, ?)
+                ",
+                )
+                .map_err(StorageError::from)?;
+
+            for (chunk_id, embedding) in embeddings {
+                let bytes: Vec<u8> = embedding.iter().flat_map(|f| f.to_le_bytes()).collect();
+
+                stmt.execute(params![
+                    chunk_id,
+                    bytes,
+                    embedding.len() as i64,
+                    model_name,
+                    now
+                ])
+                .map_err(StorageError::from)?;
+            }
+        }
+
+        tx.commit().map_err(StorageError::from)?;
+        Ok(())
+    }
+
+    /// Deletes the embedding for a chunk.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if deletion fails.
+    pub fn delete_embedding(&mut self, chunk_id: i64) -> Result<()> {
+        self.conn
+            .execute(
+                "DELETE FROM chunk_embeddings WHERE chunk_id = ?",
+                params![chunk_id],
+            )
+            .map_err(StorageError::from)?;
+        Ok(())
+    }
+
+    /// Performs FTS5 BM25 full-text search.
+    ///
+    /// Returns chunk IDs and their BM25 scores (lower is better match).
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - The search query (supports FTS5 query syntax).
+    /// * `limit` - Maximum number of results to return.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the search fails.
+    #[allow(clippy::cast_possible_wrap)]
+    pub fn search_fts(&self, query: &str, limit: usize) -> Result<Vec<(i64, f64)>> {
+        // FTS5 bm25() returns negative scores, more negative = better match
+        // We negate it so higher scores = better match
+        let mut stmt = self
+            .conn
+            .prepare(
+                r"
+                SELECT rowid, -bm25(chunks_fts) as score
+                FROM chunks_fts
+                WHERE chunks_fts MATCH ?
+                ORDER BY score DESC
+                LIMIT ?
+            ",
+            )
+            .map_err(StorageError::from)?;
+
+        let results = stmt
+            .query_map(params![query, limit as i64], |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?))
+            })
+            .map_err(StorageError::from)?
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(StorageError::from)?;
+
+        Ok(results)
+    }
+
+    /// Returns all chunk embeddings for vector similarity search.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the query fails.
+    pub fn get_all_embeddings(&self) -> Result<Vec<(i64, Vec<f32>)>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT chunk_id, embedding FROM chunk_embeddings")
+            .map_err(StorageError::from)?;
+
+        let results = stmt
+            .query_map([], |row| {
+                let chunk_id: i64 = row.get(0)?;
+                let bytes: Vec<u8> = row.get(1)?;
+                let embedding: Vec<f32> = bytes
+                    .chunks_exact(4)
+                    .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+                    .collect();
+                Ok((chunk_id, embedding))
+            })
+            .map_err(StorageError::from)?
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(StorageError::from)?;
+
+        Ok(results)
+    }
+
+    /// Counts chunks with embeddings.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the count fails.
+    pub fn embedding_count(&self) -> Result<usize> {
+        let count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM chunk_embeddings", [], |row| {
+                row.get(0)
+            })
+            .map_err(StorageError::from)?;
+        Ok(count as usize)
+    }
+
+    /// Checks if a chunk has an embedding.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the query fails.
+    pub fn has_embedding(&self, chunk_id: i64) -> Result<bool> {
+        let count: i64 = self
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM chunk_embeddings WHERE chunk_id = ?",
+                params![chunk_id],
+                |row| row.get(0),
+            )
+            .map_err(StorageError::from)?;
+        Ok(count > 0)
     }
 }
 

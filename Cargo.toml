@@ -1,6 +1,6 @@
 [package]
 name = "rlm-rs"
-version = "0.2.0"
+version = "1.0.0"
 edition = "2024"
 rust-version = "1.85"
 description = "Recursive Language Model (RLM) REPL for Claude Code - handles long-context tasks via chunking and recursive sub-LLM calls"
@@ -46,8 +46,12 @@ memmap2 = "0.9"
 # Parallel processing
 rayon = "1.10"
 
-# Vector search (optional)
-# sqlite-vec = { version = "0.1", optional = true }
+# FastEmbed for semantic embeddings (optional - fallback to hash-based if not available)
+# Use rustls instead of native-tls (openssl) for TLS
+fastembed = { version = "5", optional = true, default-features = false, features = ["ort-download-binaries", "hf-hub-rustls-tls"] }
+
+# usearch HNSW vector search (optional - BM25-only fallback if not available)
+usearch = { version = "2.21", optional = true }
 
 [dev-dependencies]
 # Testing
@@ -114,4 +118,9 @@ redundant_pub_crate = "allow"
 
 [features]
 default = []
-vector-search = []  # Enable vector semantic search (requires sqlite-vec)
+# FastEmbed semantic embeddings (ONNX-based, all-MiniLM-L6-v2, 384 dimensions)
+fastembed-embeddings = ["dep:fastembed"]
+# usearch HNSW vector search (native implementation)
+usearch-hnsw = ["dep:usearch"]
+# Full semantic search (embeddings + vector search)
+full-search = ["fastembed-embeddings", "usearch-hnsw"]

@@ -195,7 +195,7 @@ pub struct StorageStats {
 }
 
 /// Trait for vector-based semantic search (feature-gated).
-#[cfg(feature = "vector-search")]
+#[cfg(feature = "usearch-hnsw")]
 pub trait VectorStorage: Storage {
     /// Indexes a chunk with embeddings for semantic search.
     ///

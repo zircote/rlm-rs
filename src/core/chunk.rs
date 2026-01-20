@@ -459,4 +459,30 @@ mod tests {
         assert!(chunk.is_empty());
         assert_eq!(chunk.size(), 0);
     }
+
+    #[test]
+    fn test_chunk_set_line_range() {
+        // Test set_line_range method (lines 175-176)
+        let mut chunk = Chunk::new(1, "test".to_string(), 0..4, 0);
+        chunk.set_line_range(5, 10);
+        assert_eq!(chunk.metadata.line_range, Some(5..10));
+    }
+
+    #[test]
+    fn test_find_char_boundary_at_end() {
+        // Test find_char_boundary when pos >= s.len() (lines 329-330)
+        let s = "hello";
+        assert_eq!(find_char_boundary(s, 10), 5);
+        assert_eq!(find_char_boundary(s, 5), 5);
+    }
+
+    #[test]
+    fn test_find_char_boundary_in_multibyte() {
+        // Test find_char_boundary in middle of multibyte char (lines 333-334)
+        let s = "Hello 世界!";
+        // '世' is at bytes 6-8, '界' is at bytes 9-11
+        assert_eq!(find_char_boundary(s, 7), 6); // Middle of '世', should go back
+        assert_eq!(find_char_boundary(s, 8), 6); // Still middle of '世'
+        assert_eq!(find_char_boundary(s, 9), 9); // Start of '界'
+    }
 }

@@ -5,6 +5,8 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
+use crate::chunking::{DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP};
+
 /// RLM-RS: Recursive Language Model REPL for Claude Code.
 ///
 /// A CLI tool for handling large context files via chunking and
@@ -68,12 +70,12 @@ pub enum Commands {
         #[arg(short, long, default_value = "semantic")]
         chunker: String,
 
-        /// Chunk size in characters (~10k tokens at 4 chars/token).
-        #[arg(long, default_value = "40000")]
+        /// Chunk size in characters.
+        #[arg(long, default_value_t = DEFAULT_CHUNK_SIZE)]
         chunk_size: usize,
 
         /// Overlap between chunks in characters.
-        #[arg(long, default_value = "500")]
+        #[arg(long, default_value_t = DEFAULT_OVERLAP)]
         overlap: usize,
     },
 
@@ -143,12 +145,12 @@ pub enum Commands {
         /// Buffer ID or name.
         buffer: String,
 
-        /// Chunk size in characters (~10k tokens at 4 chars/token).
-        #[arg(long, default_value = "40000")]
+        /// Chunk size in characters.
+        #[arg(long, default_value_t = DEFAULT_CHUNK_SIZE)]
         chunk_size: usize,
 
         /// Overlap between chunks in characters.
-        #[arg(long, default_value = "500")]
+        #[arg(long, default_value_t = DEFAULT_OVERLAP)]
         overlap: usize,
     },
 
@@ -161,12 +163,12 @@ pub enum Commands {
         #[arg(short, long, default_value = ".rlm/chunks")]
         out_dir: PathBuf,
 
-        /// Chunk size in characters (~10k tokens at 4 chars/token).
-        #[arg(long, default_value = "40000")]
+        /// Chunk size in characters.
+        #[arg(long, default_value_t = DEFAULT_CHUNK_SIZE)]
         chunk_size: usize,
 
         /// Overlap between chunks in characters.
-        #[arg(long, default_value = "500")]
+        #[arg(long, default_value_t = DEFAULT_OVERLAP)]
         overlap: usize,
 
         /// Filename prefix.
@@ -220,6 +222,82 @@ pub enum Commands {
         #[arg(short, long)]
         delete: bool,
     },
+
+    /// Search chunks using hybrid semantic + BM25 search.
+    ///
+    /// Returns chunk IDs and scores. Use `chunk get <id>` to retrieve content.
+    Search {
+        /// Search query text.
+        query: String,
+
+        /// Maximum number of results.
+        #[arg(short = 'k', long, default_value = "10")]
+        top_k: usize,
+
+        /// Minimum similarity threshold (0.0-1.0).
+        #[arg(short, long, default_value = "0.3")]
+        threshold: f32,
+
+        /// Search mode: hybrid, semantic, bm25.
+        #[arg(short, long, default_value = "hybrid")]
+        mode: String,
+
+        /// RRF k parameter for rank fusion.
+        #[arg(long, default_value = "60")]
+        rrf_k: u32,
+
+        /// Filter by buffer ID or name.
+        #[arg(short, long)]
+        buffer: Option<String>,
+    },
+
+    /// Chunk operations (get, list, embed).
+    #[command(subcommand)]
+    Chunk(ChunkCommands),
+}
+
+/// Chunk subcommands for pass-by-reference retrieval.
+#[derive(Subcommand, Debug)]
+pub enum ChunkCommands {
+    /// Get a chunk by ID.
+    ///
+    /// Returns the chunk content and metadata. This is the primary
+    /// pass-by-reference retrieval mechanism for subagents.
+    Get {
+        /// Chunk ID.
+        id: i64,
+
+        /// Include metadata in output.
+        #[arg(short, long)]
+        metadata: bool,
+    },
+
+    /// List chunks for a buffer.
+    List {
+        /// Buffer ID or name.
+        buffer: String,
+
+        /// Show content preview.
+        #[arg(short, long)]
+        preview: bool,
+
+        /// Preview length in characters.
+        #[arg(long, default_value = "100")]
+        preview_len: usize,
+    },
+
+    /// Generate embeddings for buffer chunks.
+    Embed {
+        /// Buffer ID or name.
+        buffer: String,
+
+        /// Re-embed even if already embedded.
+        #[arg(short, long)]
+        force: bool,
+    },
+
+    /// Show embedding status for buffers.
+    Status,
 }
 
 impl Cli {

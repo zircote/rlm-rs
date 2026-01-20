@@ -17,9 +17,9 @@ pub use parallel::ParallelChunker;
 pub use semantic::SemanticChunker;
 pub use traits::{ChunkMetadata as ChunkerMetadata, Chunker};
 
-/// Default chunk size in characters (~10k tokens at 4 chars/token).
-/// Sized to fit comfortably within Claude's 25k token read limit.
-pub const DEFAULT_CHUNK_SIZE: usize = 40_000;
+/// Default chunk size in characters (~60k tokens at 4 chars/token).
+/// Sized to utilize most of Claude's context window per chunk.
+pub const DEFAULT_CHUNK_SIZE: usize = 240_000;
 
 /// Default overlap size in characters (for context continuity).
 pub const DEFAULT_OVERLAP: usize = 500;
@@ -62,4 +62,55 @@ pub fn create_chunker(name: &str) -> crate::error::Result<Box<dyn Chunker>> {
 #[must_use]
 pub fn available_strategies() -> Vec<&'static str> {
     vec!["fixed", "semantic", "parallel"]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_chunker() {
+        // Test default_chunker function (lines 32-33)
+        let chunker = default_chunker();
+        assert_eq!(chunker.name(), "semantic");
+    }
+
+    #[test]
+    fn test_create_chunker_fixed() {
+        let chunker = create_chunker("fixed").unwrap();
+        assert_eq!(chunker.name(), "fixed");
+    }
+
+    #[test]
+    fn test_create_chunker_semantic() {
+        let chunker = create_chunker("semantic").unwrap();
+        assert_eq!(chunker.name(), "semantic");
+    }
+
+    #[test]
+    fn test_create_chunker_parallel() {
+        let chunker = create_chunker("parallel").unwrap();
+        assert_eq!(chunker.name(), "parallel");
+    }
+
+    #[test]
+    fn test_create_chunker_unknown() {
+        let result = create_chunker("unknown");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_create_chunker_case_insensitive() {
+        let chunker = create_chunker("FIXED").unwrap();
+        assert_eq!(chunker.name(), "fixed");
+    }
+
+    #[test]
+    fn test_available_strategies() {
+        let strategies = available_strategies();
+        assert_eq!(strategies.len(), 3);
+        assert!(strategies.contains(&"fixed"));
+        assert!(strategies.contains(&"semantic"));
+        assert!(strategies.contains(&"parallel"));
+    }
 }

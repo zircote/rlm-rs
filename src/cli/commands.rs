@@ -7,12 +7,15 @@ use crate::cli::output::{
     GrepMatch, OutputFormat, format_buffer, format_buffer_list, format_chunk_indices,
     format_grep_matches, format_peek, format_status, format_write_chunks_result,
 };
-use crate::cli::parser::{Cli, Commands};
+use crate::cli::parser::{ChunkCommands, Cli, Commands};
 use crate::core::{Buffer, Context, ContextValue};
+use crate::embedding::create_embedder;
 use crate::error::{CommandError, Result, StorageError};
 use crate::io::{read_file, write_file};
+use crate::search::{SearchConfig, SearchResult, embed_buffer_chunks, hybrid_search};
 use crate::storage::{SqliteStorage, Storage};
 use regex::RegexBuilder;
+use std::fmt::Write as FmtWrite;
 use std::io::{self, Read, Write as IoWrite};
 
 /// Executes the CLI command.
@@ -28,6 +31,7 @@ use std::io::{self, Read, Write as IoWrite};
 /// # Errors
 ///
 /// Returns an error if the command fails to execute.
+#[allow(clippy::too_many_lines)]
 pub fn execute(cli: &Cli) -> Result<String> {
     let format = OutputFormat::parse(&cli.format);
     let db_path = cli.get_db_path();
@@ -108,6 +112,35 @@ pub fn execute(cli: &Cli) -> Result<String> {
             value,
             delete,
         } => cmd_global(&db_path, name, value.as_deref(), *delete, format),
+        Commands::Search {
+            query,
+            top_k,
+            threshold,
+            mode,
+            rrf_k,
+            buffer,
+        } => cmd_search(
+            &db_path,
+            query,
+            *top_k,
+            *threshold,
+            mode,
+            *rrf_k,
+            buffer.as_deref(),
+            format,
+        ),
+        Commands::Chunk(chunk_cmd) => match chunk_cmd {
+            ChunkCommands::Get { id, metadata } => cmd_chunk_get(&db_path, *id, *metadata, format),
+            ChunkCommands::List {
+                buffer,
+                preview,
+                preview_len,
+            } => cmd_chunk_list(&db_path, buffer, *preview, *preview_len, format),
+            ChunkCommands::Embed { buffer, force } => {
+                cmd_chunk_embed(&db_path, buffer, *force, format)
+            }
+            ChunkCommands::Status => cmd_chunk_status(&db_path, format),
+        },
     }
 }
 
@@ -594,6 +627,441 @@ fn cmd_global(
     }
 }
 
+// ==================== Search Commands ====================
+
+#[allow(clippy::too_many_arguments)]
+fn cmd_search(
+    db_path: &std::path::Path,
+    query: &str,
+    top_k: usize,
+    threshold: f32,
+    mode: &str,
+    rrf_k: u32,
+    buffer_filter: Option<&str>,
+    format: OutputFormat,
+) -> Result<String> {
+    let storage = open_storage(db_path)?;
+    let embedder = create_embedder()?;
+
+    // Determine search mode
+    let (use_semantic, use_bm25) = match mode.to_lowercase().as_str() {
+        "semantic" => (true, false),
+        "bm25" => (false, true),
+        _ => (true, true), // hybrid is default
+    };
+
+    let config = SearchConfig::new()
+        .with_top_k(top_k)
+        .with_threshold(threshold)
+        .with_rrf_k(rrf_k)
+        .with_semantic(use_semantic)
+        .with_bm25(use_bm25);
+
+    // If buffer filter is specified, validate it exists
+    let buffer_id = if let Some(identifier) = buffer_filter {
+        let buffer = resolve_buffer(&storage, identifier)?;
+        buffer.id
+    } else {
+        None
+    };
+
+    let results = hybrid_search(&storage, embedder.as_ref(), query, &config)?;
+
+    // Filter by buffer if specified
+    let results: Vec<SearchResult> = if let Some(bid) = buffer_id {
+        let buffer_chunks: std::collections::HashSet<i64> = storage
+            .get_chunks(bid)?
+            .iter()
+            .filter_map(|c| c.id)
+            .collect();
+        results
+            .into_iter()
+            .filter(|r| buffer_chunks.contains(&r.chunk_id))
+            .collect()
+    } else {
+        results
+    };
+
+    Ok(format_search_results(&results, query, mode, format))
+}
+
+fn format_search_results(
+    results: &[SearchResult],
+    query: &str,
+    mode: &str,
+    format: OutputFormat,
+) -> String {
+    match format {
+        OutputFormat::Text => {
+            if results.is_empty() {
+                return format!("No results found for query: \"{query}\"\n");
+            }
+
+            let mut output = String::new();
+            let _ = writeln!(
+                output,
+                "Search results for \"{query}\" ({mode} mode, {} results):\n",
+                results.len()
+            );
+            let _ = writeln!(
+                output,
+                "{:<10} {:<12} {:<12} {:<12}",
+                "Chunk ID", "Score", "Semantic", "BM25"
+            );
+            output.push_str(&"-".repeat(50));
+            output.push('\n');
+
+            for result in results {
+                let semantic = result
+                    .semantic_score
+                    .map_or_else(|| "-".to_string(), |s| format!("{s:.4}"));
+                let bm25 = result
+                    .bm25_score
+                    .map_or_else(|| "-".to_string(), |s| format!("{s:.4}"));
+
+                let _ = writeln!(
+                    output,
+                    "{:<10} {:<12.4} {:<12} {:<12}",
+                    result.chunk_id, result.score, semantic, bm25
+                );
+            }
+
+            output.push_str("\nUse 'rlm-rs chunk get <id>' to retrieve chunk content.\n");
+            output
+        }
+        OutputFormat::Json => {
+            let json = serde_json::json!({
+                "query": query,
+                "mode": mode,
+                "count": results.len(),
+                "results": results.iter().map(|r| {
+                    serde_json::json!({
+                        "chunk_id": r.chunk_id,
+                        "score": r.score,
+                        "semantic_score": r.semantic_score,
+                        "bm25_score": r.bm25_score
+                    })
+                }).collect::<Vec<_>>()
+            });
+            serde_json::to_string_pretty(&json).unwrap_or_default()
+        }
+    }
+}
+
+// ==================== Chunk Commands ====================
+
+fn cmd_chunk_get(
+    db_path: &std::path::Path,
+    chunk_id: i64,
+    include_metadata: bool,
+    format: OutputFormat,
+) -> Result<String> {
+    let storage = open_storage(db_path)?;
+
+    let chunk = storage
+        .get_chunk(chunk_id)?
+        .ok_or(StorageError::ChunkNotFound { id: chunk_id })?;
+
+    match format {
+        OutputFormat::Text => {
+            if include_metadata {
+                let mut output = String::new();
+                let _ = writeln!(output, "Chunk ID: {}", chunk.id.unwrap_or(0));
+                let _ = writeln!(output, "Buffer ID: {}", chunk.buffer_id);
+                let _ = writeln!(output, "Index: {}", chunk.index);
+                let _ = writeln!(
+                    output,
+                    "Byte range: {}..{}",
+                    chunk.byte_range.start, chunk.byte_range.end
+                );
+                let _ = writeln!(output, "Size: {} bytes", chunk.size());
+                output.push_str("---\n");
+                output.push_str(&chunk.content);
+                if !chunk.content.ends_with('\n') {
+                    output.push('\n');
+                }
+                Ok(output)
+            } else {
+                // Plain content output for pass-by-reference use case
+                Ok(chunk.content)
+            }
+        }
+        OutputFormat::Json => {
+            let json = serde_json::json!({
+                "chunk_id": chunk.id,
+                "buffer_id": chunk.buffer_id,
+                "index": chunk.index,
+                "byte_range": {
+                    "start": chunk.byte_range.start,
+                    "end": chunk.byte_range.end
+                },
+                "size": chunk.size(),
+                "content": chunk.content
+            });
+            Ok(serde_json::to_string_pretty(&json).unwrap_or_default())
+        }
+    }
+}
+
+fn cmd_chunk_list(
+    db_path: &std::path::Path,
+    identifier: &str,
+    show_preview: bool,
+    preview_len: usize,
+    format: OutputFormat,
+) -> Result<String> {
+    let storage = open_storage(db_path)?;
+    let buffer = resolve_buffer(&storage, identifier)?;
+    let buffer_id = buffer.id.unwrap_or(0);
+
+    let chunks = storage.get_chunks(buffer_id)?;
+
+    match format {
+        OutputFormat::Text => {
+            if chunks.is_empty() {
+                return Ok(format!(
+                    "No chunks found for buffer: {}\n",
+                    buffer.name.as_deref().unwrap_or(&buffer_id.to_string())
+                ));
+            }
+
+            let mut output = String::new();
+            let _ = writeln!(
+                output,
+                "Chunks for buffer '{}' ({} chunks):\n",
+                buffer.name.as_deref().unwrap_or(&buffer_id.to_string()),
+                chunks.len()
+            );
+
+            if show_preview {
+                let _ = writeln!(
+                    output,
+                    "{:<8} {:<6} {:<12} {:<12} Preview",
+                    "ID", "Index", "Start", "Size"
+                );
+                output.push_str(&"-".repeat(70));
+                output.push('\n');
+
+                for chunk in &chunks {
+                    let preview: String = chunk
+                        .content
+                        .chars()
+                        .take(preview_len)
+                        .map(|c| if c == '\n' { ' ' } else { c })
+                        .collect();
+                    let preview = if chunk.content.len() > preview_len {
+                        format!("{preview}...")
+                    } else {
+                        preview
+                    };
+
+                    let _ = writeln!(
+                        output,
+                        "{:<8} {:<6} {:<12} {:<12} {}",
+                        chunk.id.unwrap_or(0),
+                        chunk.index,
+                        chunk.byte_range.start,
+                        chunk.size(),
+                        preview
+                    );
+                }
+            } else {
+                let _ = writeln!(
+                    output,
+                    "{:<8} {:<6} {:<12} {:<12}",
+                    "ID", "Index", "Start", "Size"
+                );
+                output.push_str(&"-".repeat(40));
+                output.push('\n');
+
+                for chunk in &chunks {
+                    let _ = writeln!(
+                        output,
+                        "{:<8} {:<6} {:<12} {:<12}",
+                        chunk.id.unwrap_or(0),
+                        chunk.index,
+                        chunk.byte_range.start,
+                        chunk.size()
+                    );
+                }
+            }
+
+            Ok(output)
+        }
+        OutputFormat::Json => {
+            let json = serde_json::json!({
+                "buffer_id": buffer_id,
+                "buffer_name": buffer.name,
+                "chunk_count": chunks.len(),
+                "chunks": chunks.iter().map(|c| {
+                    let mut obj = serde_json::json!({
+                        "id": c.id,
+                        "index": c.index,
+                        "byte_range": {
+                            "start": c.byte_range.start,
+                            "end": c.byte_range.end
+                        },
+                        "size": c.size()
+                    });
+                    if show_preview {
+                        let preview: String = c.content.chars().take(preview_len).collect();
+                        obj["preview"] = serde_json::Value::String(preview);
+                    }
+                    obj
+                }).collect::<Vec<_>>()
+            });
+            Ok(serde_json::to_string_pretty(&json).unwrap_or_default())
+        }
+    }
+}
+
+fn cmd_chunk_embed(
+    db_path: &std::path::Path,
+    identifier: &str,
+    force: bool,
+    format: OutputFormat,
+) -> Result<String> {
+    let mut storage = open_storage(db_path)?;
+    let buffer = resolve_buffer(&storage, identifier)?;
+    let buffer_id = buffer.id.unwrap_or(0);
+    let buffer_name = buffer.name.unwrap_or_else(|| buffer_id.to_string());
+
+    // Check if already embedded (unless force)
+    if !force {
+        let chunks = storage.get_chunks(buffer_id)?;
+        let mut all_embedded = true;
+        for chunk in &chunks {
+            if let Some(cid) = chunk.id {
+                if !storage.has_embedding(cid)? {
+                    all_embedded = false;
+                    break;
+                }
+            }
+        }
+        if all_embedded && !chunks.is_empty() {
+            return Ok(format!(
+                "Buffer '{buffer_name}' already has embeddings. Use --force to re-embed.\n"
+            ));
+        }
+    }
+
+    let embedder = create_embedder()?;
+    let count = embed_buffer_chunks(&mut storage, embedder.as_ref(), buffer_id)?;
+
+    match format {
+        OutputFormat::Text => Ok(format!(
+            "Generated embeddings for {count} chunks in buffer '{buffer_name}'.\n"
+        )),
+        OutputFormat::Json => {
+            let json = serde_json::json!({
+                "buffer_id": buffer_id,
+                "buffer_name": buffer_name,
+                "chunks_embedded": count
+            });
+            Ok(serde_json::to_string_pretty(&json).unwrap_or_default())
+        }
+    }
+}
+
+fn cmd_chunk_status(db_path: &std::path::Path, format: OutputFormat) -> Result<String> {
+    let storage = open_storage(db_path)?;
+    let buffers = storage.list_buffers()?;
+
+    let mut buffer_stats: Vec<(String, i64, usize, usize)> = Vec::new();
+
+    for buffer in &buffers {
+        let buffer_id = buffer.id.unwrap_or(0);
+        let buffer_name = buffer.name.clone().unwrap_or_else(|| buffer_id.to_string());
+        let chunks = storage.get_chunks(buffer_id)?;
+        let chunk_count = chunks.len();
+
+        let mut embedded_count = 0;
+        for chunk in &chunks {
+            if let Some(cid) = chunk.id {
+                if storage.has_embedding(cid)? {
+                    embedded_count += 1;
+                }
+            }
+        }
+
+        buffer_stats.push((buffer_name, buffer_id, chunk_count, embedded_count));
+    }
+
+    let total_chunks: usize = buffer_stats.iter().map(|(_, _, c, _)| c).sum();
+    let total_embedded: usize = buffer_stats.iter().map(|(_, _, _, e)| e).sum();
+
+    match format {
+        OutputFormat::Text => {
+            let mut output = String::new();
+            output.push_str("Embedding Status\n");
+            output.push_str("================\n\n");
+            let _ = writeln!(
+                output,
+                "Total: {total_embedded}/{total_chunks} chunks embedded\n"
+            );
+
+            if !buffer_stats.is_empty() {
+                let _ = writeln!(
+                    output,
+                    "{:<6} {:<20} {:<10} {:<10} Status",
+                    "ID", "Name", "Chunks", "Embedded"
+                );
+                output.push_str(&"-".repeat(60));
+                output.push('\n');
+
+                for (name, id, chunks, embedded) in &buffer_stats {
+                    let status = if *embedded == *chunks {
+                        "✓ complete"
+                    } else if *embedded > 0 {
+                        "◐ partial"
+                    } else {
+                        "○ none"
+                    };
+
+                    let _ = writeln!(
+                        output,
+                        "{:<6} {:<20} {:<10} {:<10} {}",
+                        id,
+                        truncate_str(name, 20),
+                        chunks,
+                        embedded,
+                        status
+                    );
+                }
+            }
+
+            Ok(output)
+        }
+        OutputFormat::Json => {
+            let json = serde_json::json!({
+                "total_chunks": total_chunks,
+                "total_embedded": total_embedded,
+                "buffers": buffer_stats.iter().map(|(name, id, chunks, embedded)| {
+                    serde_json::json!({
+                        "buffer_id": id,
+                        "name": name,
+                        "chunk_count": chunks,
+                        "embedded_count": embedded,
+                        "fully_embedded": chunks == embedded
+                    })
+                }).collect::<Vec<_>>()
+            });
+            Ok(serde_json::to_string_pretty(&json).unwrap_or_default())
+        }
+    }
+}
+
+/// Truncates a string to max length with ellipsis.
+fn truncate_str(s: &str, max_len: usize) -> String {
+    if s.len() <= max_len {
+        s.to_string()
+    } else if max_len <= 3 {
+        s[..max_len].to_string()
+    } else {
+        format!("{}...", &s[..max_len - 3])
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -703,5 +1171,40 @@ mod tests {
         // Delete variable
         let result = cmd_variable(&db_path, "key", None, true, OutputFormat::Text);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_truncate_str_short() {
+        // String shorter than max_len should be returned as-is
+        let result = truncate_str("hello", 10);
+        assert_eq!(result, "hello");
+    }
+
+    #[test]
+    fn test_truncate_str_exact() {
+        // String exactly at max_len should be returned as-is
+        let result = truncate_str("hello", 5);
+        assert_eq!(result, "hello");
+    }
+
+    #[test]
+    fn test_truncate_str_long() {
+        // String longer than max_len should be truncated with ...
+        let result = truncate_str("hello world", 8);
+        assert_eq!(result, "hello...");
+    }
+
+    #[test]
+    fn test_truncate_str_very_short_max() {
+        // max_len <= 3 should just truncate without ellipsis
+        let result = truncate_str("hello", 3);
+        assert_eq!(result, "hel");
+    }
+
+    #[test]
+    fn test_truncate_str_edge_case() {
+        // max_len of 4 should show 1 char + ...
+        let result = truncate_str("hello", 4);
+        assert_eq!(result, "h...");
     }
 }

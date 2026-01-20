@@ -219,4 +219,122 @@ mod tests {
         assert!(meta.preserve_sentences);
         assert_eq!(meta.max_chunks, 10);
     }
+
+    #[test]
+    fn test_chunk_metadata_with_size() {
+        let meta = ChunkMetadata::with_size(500);
+        assert_eq!(meta.chunk_size, 500);
+        assert_eq!(meta.overlap, 0);
+    }
+
+    #[test]
+    fn test_chunk_metadata_preserve_lines() {
+        let meta = ChunkMetadata::new().preserve_lines(false);
+        assert!(!meta.preserve_lines);
+
+        let meta = ChunkMetadata::new().preserve_lines(true);
+        assert!(meta.preserve_lines);
+    }
+
+    // Test validation through FixedChunker since trait methods need a concrete impl
+    mod validation_tests {
+        use crate::chunking::FixedChunker;
+        use crate::chunking::traits::{ChunkMetadata, Chunker};
+
+        #[test]
+        fn test_chunker_validate_zero_chunk_size() {
+            let chunker = FixedChunker::with_size(100);
+            let meta = ChunkMetadata {
+                chunk_size: 0,
+                overlap: 0,
+                ..Default::default()
+            };
+            let result = chunker.validate(Some(&meta));
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_chunker_validate_overlap_too_large() {
+            let chunker = FixedChunker::with_size(100);
+            let meta = ChunkMetadata {
+                chunk_size: 50,
+                overlap: 100, // overlap >= chunk_size
+                ..Default::default()
+            };
+            let result = chunker.validate(Some(&meta));
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_chunker_validate_valid() {
+            let chunker = FixedChunker::with_size(100);
+            let meta = ChunkMetadata {
+                chunk_size: 100,
+                overlap: 10,
+                ..Default::default()
+            };
+            let result = chunker.validate(Some(&meta));
+            assert!(result.is_ok());
+        }
+
+        #[test]
+        fn test_chunker_validate_none() {
+            let chunker = FixedChunker::with_size(100);
+            let result = chunker.validate(None);
+            assert!(result.is_ok());
+        }
+
+        #[test]
+        fn test_chunker_supports_parallel() {
+            let chunker = FixedChunker::with_size(100);
+            // FixedChunker doesn't support parallel by default
+            assert!(!chunker.supports_parallel());
+        }
+
+        #[test]
+        fn test_chunker_description() {
+            let chunker = FixedChunker::with_size(100);
+            let desc = chunker.description();
+            assert!(!desc.is_empty());
+        }
+
+        #[test]
+        fn test_chunker_name() {
+            let chunker = FixedChunker::with_size(100);
+            assert_eq!(chunker.name(), "fixed");
+        }
+    }
+
+    /// A minimal chunker that uses all default trait implementations
+    struct MinimalChunker;
+
+    impl Chunker for MinimalChunker {
+        fn chunk(
+            &self,
+            _buffer_id: i64,
+            _text: &str,
+            _metadata: Option<&ChunkMetadata>,
+        ) -> crate::error::Result<Vec<crate::core::Chunk>> {
+            Ok(vec![])
+        }
+
+        fn name(&self) -> &'static str {
+            "minimal"
+        }
+    }
+
+    #[test]
+    fn test_chunker_default_description() {
+        // Test default description() method (lines 60-61)
+        let chunker = MinimalChunker;
+        let desc = chunker.description();
+        assert_eq!(desc, "No description available");
+    }
+
+    #[test]
+    fn test_chunker_default_supports_parallel() {
+        // Test default supports_parallel() (line 56)
+        let chunker = MinimalChunker;
+        assert!(!chunker.supports_parallel());
+    }
 }

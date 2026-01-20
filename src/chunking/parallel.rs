@@ -320,4 +320,78 @@ mod tests {
         let chunks = chunker.chunk(1, "", None).unwrap();
         assert!(chunks.is_empty());
     }
+
+    #[test]
+    fn test_split_into_segments_single_segment() {
+        // Test when n <= 1 returns single segment (line 69)
+        let chunker = ParallelChunker::new(SemanticChunker::new())
+            .min_parallel_size(10)
+            .num_segments(1);
+
+        let text = "This is some test content";
+        let segments = chunker.split_into_segments(text, 1);
+        assert_eq!(segments.len(), 1);
+        assert_eq!(segments[0].1, text);
+    }
+
+    #[test]
+    fn test_split_into_segments_text_too_small() {
+        // Test when text.len() < min_parallel_size (line 68-69)
+        let chunker = ParallelChunker::new(SemanticChunker::new())
+            .min_parallel_size(1000)
+            .num_segments(4);
+
+        let text = "Short text";
+        let segments = chunker.split_into_segments(text, 4);
+        assert_eq!(segments.len(), 1);
+        assert_eq!(segments[0].1, text);
+    }
+
+    #[test]
+    fn test_parallel_chunker_segments_collapse_to_one() {
+        // Test when split produces only 1 segment, falls back to inner (line 165)
+        let chunker = ParallelChunker::new(SemanticChunker::with_size(100))
+            .min_parallel_size(10)
+            .num_segments(10);
+
+        // Text that's small enough that segmentation produces just one segment
+        let text = "A short text that won't split well.";
+        let chunks = chunker.chunk(1, text, None).unwrap();
+        assert!(!chunks.is_empty());
+    }
+
+    #[test]
+    fn test_parallel_chunker_description() {
+        // Test description method (lines 202-203)
+        let chunker = ParallelChunker::new(SemanticChunker::new());
+        let desc = chunker.description();
+        assert!(desc.contains("Parallel"));
+        assert!(!desc.is_empty());
+    }
+
+    #[test]
+    fn test_find_segment_boundary_no_good_boundary() {
+        // Test when no paragraph, newline, or space is found (lines 124-128)
+        let text = "AAAAAAAAAAAAAAAAAAAA"; // No natural boundaries
+        let boundary = ParallelChunker::<SemanticChunker>::find_segment_boundary(text, 10);
+        // Should fall back to character boundary
+        assert!(boundary <= text.len());
+    }
+
+    #[test]
+    fn test_find_segment_boundary_at_end() {
+        // Test when target >= text.len() (line 102)
+        let text = "Short";
+        let boundary = ParallelChunker::<SemanticChunker>::find_segment_boundary(text, 100);
+        assert_eq!(boundary, text.len());
+    }
+
+    #[test]
+    fn test_find_segment_boundary_finds_space() {
+        // Test when space is found but no newline (lines 119-120)
+        let text = "word1 word2 word3 word4";
+        let boundary = ParallelChunker::<SemanticChunker>::find_segment_boundary(text, 15);
+        // Should find a space boundary
+        assert!(boundary > 0 && boundary <= text.len());
+    }
 }

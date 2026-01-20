@@ -297,4 +297,30 @@ mod tests {
         assert_eq!(lines[0], (0, "Line 1"));
         // Note: offset calculation is approximate
     }
+
+    #[test]
+    fn test_find_char_boundary_forward_at_end() {
+        // Test find_char_boundary_forward when pos >= s.len() (line 53)
+        let s = "hello";
+        assert_eq!(find_char_boundary_forward(s, 10), 5);
+        assert_eq!(find_char_boundary_forward(s, 5), 5);
+    }
+
+    #[test]
+    fn test_grapheme_byte_position_out_of_range() {
+        // Test grapheme_byte_position when n > grapheme count (line 144)
+        let s = "abc";
+        assert_eq!(grapheme_byte_position(s, 10), 3); // Returns s.len()
+    }
+
+    #[test]
+    fn test_grapheme_byte_position_edge_cases() {
+        // Test with unicode to ensure correct byte offset calculation
+        let s = "Hello 世界"; // "Hello " is 6 bytes, "世" is 3 bytes, "界" is 3 bytes
+        assert_eq!(grapheme_byte_position(s, 0), 0);
+        assert_eq!(grapheme_byte_position(s, 6), 6); // Before '世'
+        assert_eq!(grapheme_byte_position(s, 7), 9); // After '世'
+        assert_eq!(grapheme_byte_position(s, 8), 12); // After '界'
+        assert_eq!(grapheme_byte_position(s, 100), 12); // Out of range
+    }
 }

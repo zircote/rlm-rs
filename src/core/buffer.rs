@@ -363,6 +363,15 @@ mod tests {
     }
 
     #[test]
+    fn test_buffer_display_name_source_without_name() {
+        // Test display_name when buffer has source path but no name (lines 232-234)
+        let mut buffer = Buffer::from_content(String::new());
+        buffer.source = Some(PathBuf::from("/some/path/to/document.md"));
+        // name is None, source is Some - should extract filename from path
+        assert_eq!(buffer.display_name(), "document.md");
+    }
+
+    #[test]
     fn test_buffer_hash() {
         let mut buffer = Buffer::from_content("Hello".to_string());
         buffer.compute_hash();

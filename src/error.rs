@@ -84,9 +84,14 @@ pub enum StorageError {
     Serialization(String),
 
     /// Vector search error (feature-gated).
-    #[cfg(feature = "vector-search")]
+    #[cfg(feature = "usearch-hnsw")]
     #[error("vector search error: {0}")]
     VectorSearch(String),
+
+    /// Embedding error (feature-gated).
+    #[cfg(feature = "fastembed-embeddings")]
+    #[error("embedding error: {0}")]
+    Embedding(String),
 }
 
 /// Chunking-specific errors for text processing.
@@ -352,5 +357,173 @@ mod tests {
         let chunk_err = ChunkingError::InvalidUtf8 { offset: 0 };
         let err: Error = chunk_err.into();
         assert!(matches!(err, Error::Chunking(_)));
+    }
+
+    #[test]
+    fn test_error_from_command() {
+        let cmd_err = CommandError::Cancelled;
+        let err: Error = cmd_err.into();
+        assert!(matches!(err, Error::Command(_)));
+    }
+
+    #[test]
+    fn test_error_config() {
+        let err = Error::Config {
+            message: "bad config".to_string(),
+        };
+        assert_eq!(err.to_string(), "configuration error: bad config");
+    }
+
+    #[test]
+    fn test_storage_error_variants() {
+        let err = StorageError::Database("connection failed".to_string());
+        assert!(err.to_string().contains("connection failed"));
+
+        let err = StorageError::ContextNotFound;
+        assert_eq!(err.to_string(), "context not found");
+
+        let err = StorageError::ChunkNotFound { id: 42 };
+        assert_eq!(err.to_string(), "chunk not found: 42");
+
+        let err = StorageError::Migration("schema error".to_string());
+        assert!(err.to_string().contains("schema error"));
+
+        let err = StorageError::Transaction("rollback".to_string());
+        assert!(err.to_string().contains("rollback"));
+
+        let err = StorageError::Serialization("invalid json".to_string());
+        assert!(err.to_string().contains("invalid json"));
+    }
+
+    #[test]
+    fn test_chunking_error_variants() {
+        let err = ChunkingError::ChunkTooLarge {
+            size: 1000,
+            max: 500,
+        };
+        assert!(err.to_string().contains("1000"));
+        assert!(err.to_string().contains("500"));
+
+        let err = ChunkingError::InvalidConfig {
+            reason: "bad overlap".to_string(),
+        };
+        assert!(err.to_string().contains("bad overlap"));
+
+        let err = ChunkingError::ParallelFailed {
+            reason: "thread panic".to_string(),
+        };
+        assert!(err.to_string().contains("thread panic"));
+
+        let err = ChunkingError::SemanticFailed("model error".to_string());
+        assert!(err.to_string().contains("model error"));
+
+        let err = ChunkingError::Regex("invalid pattern".to_string());
+        assert!(err.to_string().contains("invalid pattern"));
+
+        let err = ChunkingError::UnknownStrategy {
+            name: "foobar".to_string(),
+        };
+        assert!(err.to_string().contains("foobar"));
+    }
+
+    #[test]
+    fn test_io_error_variants() {
+        let err = IoError::ReadFailed {
+            path: "/tmp/test".to_string(),
+            reason: "permission denied".to_string(),
+        };
+        assert!(err.to_string().contains("/tmp/test"));
+        assert!(err.to_string().contains("permission denied"));
+
+        let err = IoError::WriteFailed {
+            path: "/tmp/out".to_string(),
+            reason: "disk full".to_string(),
+        };
+        assert!(err.to_string().contains("disk full"));
+
+        let err = IoError::MmapFailed {
+            path: "/tmp/big".to_string(),
+            reason: "out of memory".to_string(),
+        };
+        assert!(err.to_string().contains("memory mapping"));
+
+        let err = IoError::DirectoryFailed {
+            path: "/tmp/dir".to_string(),
+            reason: "exists".to_string(),
+        };
+        assert!(err.to_string().contains("directory"));
+
+        let err = IoError::PathTraversal {
+            path: "../etc/passwd".to_string(),
+        };
+        assert!(err.to_string().contains("traversal"));
+
+        let err = IoError::Generic("unknown error".to_string());
+        assert!(err.to_string().contains("unknown error"));
+    }
+
+    #[test]
+    fn test_command_error_variants() {
+        let err = CommandError::UnknownCommand("foo".to_string());
+        assert!(err.to_string().contains("unknown command"));
+
+        let err = CommandError::InvalidArgument("--bad".to_string());
+        assert!(err.to_string().contains("invalid argument"));
+
+        let err = CommandError::ExecutionFailed("timeout".to_string());
+        assert!(err.to_string().contains("execution failed"));
+
+        let err = CommandError::Cancelled;
+        assert!(err.to_string().contains("cancelled"));
+
+        let err = CommandError::OutputFormat("json error".to_string());
+        assert!(err.to_string().contains("output format"));
+    }
+
+    #[test]
+    fn test_from_rusqlite_error_to_error() {
+        let rusqlite_err = rusqlite::Error::InvalidQuery;
+        let err: Error = rusqlite_err.into();
+        assert!(matches!(err, Error::Storage(StorageError::Database(_))));
+    }
+
+    #[test]
+    fn test_from_rusqlite_error_to_storage_error() {
+        let rusqlite_err = rusqlite::Error::InvalidQuery;
+        let err: StorageError = rusqlite_err.into();
+        assert!(matches!(err, StorageError::Database(_)));
+    }
+
+    #[test]
+    #[allow(clippy::invalid_regex)]
+    fn test_from_regex_error_to_chunking_error() {
+        let regex_err = regex::Regex::new("[invalid").unwrap_err();
+        let err: ChunkingError = regex_err.into();
+        assert!(matches!(err, ChunkingError::Regex(_)));
+    }
+
+    #[test]
+    fn test_from_serde_json_error_to_storage_error() {
+        let json_err: serde_json::Error = serde_json::from_str::<i32>("invalid").unwrap_err();
+        let err: StorageError = json_err.into();
+        assert!(matches!(err, StorageError::Serialization(_)));
+    }
+
+    #[test]
+    fn test_from_string_utf8_error_to_chunking_error() {
+        // Create invalid UTF-8 bytes
+        let invalid_bytes = vec![0xff, 0xfe];
+        let utf8_err = String::from_utf8(invalid_bytes).unwrap_err();
+        let err: ChunkingError = utf8_err.into();
+        assert!(matches!(err, ChunkingError::InvalidUtf8 { .. }));
+    }
+
+    #[test]
+    fn test_from_str_utf8_error_to_chunking_error() {
+        // Create invalid UTF-8 bytes at runtime to avoid lint warning
+        let invalid_bytes: Vec<u8> = vec![0xff, 0xfe];
+        let utf8_err = std::str::from_utf8(&invalid_bytes).unwrap_err();
+        let err: ChunkingError = utf8_err.into();
+        assert!(matches!(err, ChunkingError::InvalidUtf8 { .. }));
     }
 }

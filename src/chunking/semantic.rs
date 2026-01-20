@@ -452,4 +452,161 @@ mod tests {
         assert_eq!(find_char_boundary(s, 8), 6); // Middle of '世'
         assert_eq!(find_char_boundary(s, 9), 9); // After '世'
     }
+
+    #[test]
+    fn test_semantic_chunker_default_impl() {
+        // Test Default trait implementation (lines 38-39)
+        let chunker = SemanticChunker::default();
+        assert_eq!(chunker.chunk_size, DEFAULT_CHUNK_SIZE);
+        assert_eq!(chunker.overlap, DEFAULT_OVERLAP);
+        assert_eq!(chunker.min_chunk_size, 100);
+    }
+
+    #[test]
+    fn test_semantic_chunker_min_chunk_size() {
+        // Test min_chunk_size builder method (lines 76-78)
+        let chunker = SemanticChunker::new().min_chunk_size(200);
+        assert_eq!(chunker.min_chunk_size, 200);
+    }
+
+    #[test]
+    fn test_semantic_chunker_description() {
+        // Test description method (lines 306-307)
+        let chunker = SemanticChunker::new();
+        let desc = chunker.description();
+        assert!(desc.contains("Semantic"));
+        assert!(!desc.is_empty());
+    }
+
+    #[test]
+    fn test_find_char_boundary_at_end() {
+        // Test find_char_boundary when pos >= s.len() (line 314)
+        let s = "hello";
+        assert_eq!(find_char_boundary(s, 10), 5);
+        assert_eq!(find_char_boundary(s, 5), 5);
+    }
+
+    #[test]
+    fn test_semantic_chunker_large_text() {
+        // Test with larger text to trigger more boundary finding
+        let chunker = SemanticChunker::with_size(100);
+        let text = "This is a sentence. ".repeat(50);
+        let chunks = chunker.chunk(1, &text, None).unwrap();
+        assert!(!chunks.is_empty());
+
+        // Verify chunks have reasonable sizes
+        for chunk in &chunks {
+            assert!(!chunk.content.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_semantic_chunker_word_boundary() {
+        // Test word boundary detection
+        let chunker = SemanticChunker::with_size(15);
+        let text = "hello world test content here";
+        let chunks = chunker.chunk(1, text, None).unwrap();
+
+        // Should break at word boundaries where possible
+        assert!(!chunks.is_empty());
+    }
+
+    #[test]
+    fn test_semantic_chunker_with_overlap() {
+        // Test chunking with overlap
+        let chunker = SemanticChunker::with_size_and_overlap(50, 10);
+        let text = "Word ".repeat(30);
+        let chunks = chunker.chunk(1, &text, None).unwrap();
+
+        assert!(chunks.len() > 1);
+    }
+
+    #[test]
+    fn test_find_best_boundary_target_beyond_text() {
+        // Test find_best_boundary when target_pos >= text.len() (line 86)
+        let chunker = SemanticChunker::with_size(100);
+        let text = "Short text";
+        // Call chunk with small text and large chunk size to exercise the boundary
+        let chunks = chunker.chunk(1, text, None).unwrap();
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0].content, text);
+    }
+
+    #[test]
+    fn test_find_best_boundary_search_region_empty() {
+        // Test when search_start >= search_end (line 94)
+        // This happens with very small chunk sizes where the search window is minimal
+        let chunker = SemanticChunker::with_size(5).min_chunk_size(1);
+        let text = "ABCDEFGHIJKLMNOP";
+        let chunks = chunker.chunk(1, text, None).unwrap();
+        assert!(!chunks.is_empty());
+        // All chunks should be valid UTF-8
+        for chunk in &chunks {
+            assert!(!chunk.content.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_find_best_boundary_single_newline() {
+        // Test single newline boundary finding (lines 109-111)
+        let chunker = SemanticChunker::with_size(20);
+        let text = "First line here\nSecond line here\nThird line";
+        let chunks = chunker.chunk(1, text, None).unwrap();
+
+        // Should prefer breaking at single newlines when no paragraph breaks
+        assert!(!chunks.is_empty());
+        // Verify chunks are valid and cover the text
+        for chunk in &chunks {
+            assert!(!chunk.content.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_semantic_chunker_chunk_too_large() {
+        // Test ChunkTooLarge error (lines 176-178, 180)
+        let chunker = SemanticChunker::with_size(MAX_CHUNK_SIZE + 1);
+        let result = chunker.chunk(1, "test", None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_semantic_chunker_force_progress() {
+        // Test end <= start case forcing progress (line 220)
+        // This can happen with pathological input where boundary finding fails
+        let chunker = SemanticChunker::with_size(5).min_chunk_size(1);
+        let text = "AAAAAAAAAA"; // No natural boundaries
+        let chunks = chunker.chunk(1, text, None).unwrap();
+
+        // Should still make progress and produce chunks
+        assert!(!chunks.is_empty());
+        // Verify all content is covered
+        let total_content: String = chunks.iter().map(|c| c.content.as_str()).collect();
+        assert_eq!(total_content.len(), text.len());
+    }
+
+    #[test]
+    fn test_semantic_chunker_merge_tiny_final_chunk() {
+        // Test merging tiny final chunk (lines 266-292)
+        // Create text where the final chunk would be tiny
+        let chunker = SemanticChunker::with_size(50).min_chunk_size(20);
+        let text = "This is a longer sentence that will be chunked. X";
+        let chunks = chunker.chunk(1, text, None).unwrap();
+
+        // Final chunk should be merged if it's too small
+        if chunks.len() > 1 {
+            let last = chunks.last().unwrap();
+            assert!(last.size() >= 20 || chunks.len() == 1);
+        }
+    }
+
+    #[test]
+    fn test_semantic_chunker_sentence_boundary_detection() {
+        // Test sentence boundary detection with punctuation (line 121)
+        let chunker = SemanticChunker::with_size(25);
+        let text = "Question? Exclamation! Statement.";
+        let chunks = chunker.chunk(1, text, None).unwrap();
+
+        // Should detect sentence boundaries
+        assert!(!chunks.is_empty());
+    }
 }

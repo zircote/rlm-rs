@@ -23,8 +23,10 @@
 pub mod chunking;
 pub mod cli;
 pub mod core;
+pub mod embedding;
 pub mod error;
 pub mod io;
+pub mod search;
 pub mod storage;
 
 // Re-export commonly used types at crate root
@@ -41,3 +43,17 @@ pub use chunking::{Chunker, FixedChunker, SemanticChunker, available_strategies,
 
 // Re-export CLI types
 pub use cli::{Cli, Commands, OutputFormat};
+
+// Re-export embedding types
+#[cfg(feature = "fastembed-embeddings")]
+pub use embedding::FastEmbedEmbedder;
+pub use embedding::{
+    DEFAULT_DIMENSIONS, Embedder, FallbackEmbedder, cosine_similarity, create_embedder,
+};
+
+// Re-export search types
+pub use search::{
+    DEFAULT_SIMILARITY_THRESHOLD, DEFAULT_TOP_K, RrfConfig, SearchConfig, SearchResult,
+    buffer_fully_embedded, embed_buffer_chunks, hybrid_search, reciprocal_rank_fusion, search_bm25,
+    search_semantic, weighted_rrf,
+};

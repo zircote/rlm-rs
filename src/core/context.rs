@@ -432,4 +432,39 @@ mod tests {
         ctx.set_variable("key".to_string(), "value".into());
         assert!(ctx.metadata.updated_at >= initial);
     }
+
+    #[test]
+    fn test_context_value_from_string_owned() {
+        let s = String::from("owned string");
+        let cv: ContextValue = s.into();
+        assert!(matches!(cv, ContextValue::String(ref v) if v == "owned string"));
+    }
+
+    #[test]
+    fn test_context_value_from_i32() {
+        let n: i32 = 42;
+        let cv: ContextValue = n.into();
+        assert!(matches!(cv, ContextValue::Integer(42)));
+    }
+
+    #[test]
+    fn test_context_value_from_vec() {
+        let v: Vec<i64> = vec![1, 2, 3];
+        let cv: ContextValue = v.into();
+        if let ContextValue::List(list) = cv {
+            assert_eq!(list.len(), 3);
+            assert!(matches!(list[0], ContextValue::Integer(1)));
+            assert!(matches!(list[1], ContextValue::Integer(2)));
+            assert!(matches!(list[2], ContextValue::Integer(3)));
+        } else {
+            unreachable!("Expected List variant");
+        }
+    }
+
+    #[test]
+    fn test_context_value_from_option_some() {
+        let opt: Option<i64> = Some(42);
+        let cv: ContextValue = opt.into();
+        assert!(matches!(cv, ContextValue::Integer(42)));
+    }
 }

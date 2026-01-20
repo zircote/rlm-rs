@@ -3,7 +3,7 @@
 //! Contains SQL schema and migration logic for the RLM `SQLite` database.
 
 /// Current schema version.
-pub const CURRENT_SCHEMA_VERSION: u32 = 1;
+pub const CURRENT_SCHEMA_VERSION: u32 = 2;
 
 /// SQL schema for initial database setup.
 pub const SCHEMA_SQL: &str = r"
@@ -74,6 +74,38 @@ CREATE TABLE IF NOT EXISTS metadata (
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
 );
+
+-- Chunk embeddings for semantic search (v2)
+CREATE TABLE IF NOT EXISTS chunk_embeddings (
+    chunk_id INTEGER PRIMARY KEY,
+    embedding BLOB NOT NULL,  -- f32 array serialized as bytes
+    dimensions INTEGER NOT NULL,
+    model_name TEXT,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (chunk_id) REFERENCES chunks(id) ON DELETE CASCADE
+);
+
+-- FTS5 virtual table for BM25 full-text search (v2)
+CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
+    content,
+    content='chunks',
+    content_rowid='id',
+    tokenize='porter unicode61'
+);
+
+-- Triggers to keep FTS5 index in sync with chunks table (v2)
+CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks BEGIN
+    INSERT INTO chunks_fts(rowid, content) VALUES (new.id, new.content);
+END;
+
+CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks BEGIN
+    INSERT INTO chunks_fts(chunks_fts, rowid, content) VALUES('delete', old.id, old.content);
+END;
+
+CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks BEGIN
+    INSERT INTO chunks_fts(chunks_fts, rowid, content) VALUES('delete', old.id, old.content);
+    INSERT INTO chunks_fts(chunks_fts, rowid, content) VALUES (new.id, new.content);
+END;
 ";
 
 /// SQL to check if schema is initialized.
@@ -102,15 +134,50 @@ pub struct Migration {
     pub sql: &'static str,
 }
 
+/// SQL for v1 to v2 migration (adds embeddings + FTS5).
+const MIGRATION_V1_TO_V2: &str = r"
+-- Chunk embeddings for semantic search
+CREATE TABLE IF NOT EXISTS chunk_embeddings (
+    chunk_id INTEGER PRIMARY KEY,
+    embedding BLOB NOT NULL,
+    dimensions INTEGER NOT NULL,
+    model_name TEXT,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (chunk_id) REFERENCES chunks(id) ON DELETE CASCADE
+);
+
+-- FTS5 virtual table for BM25 full-text search
+CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
+    content,
+    content='chunks',
+    content_rowid='id',
+    tokenize='porter unicode61'
+);
+
+-- Triggers to keep FTS5 index in sync
+CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks BEGIN
+    INSERT INTO chunks_fts(rowid, content) VALUES (new.id, new.content);
+END;
+
+CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks BEGIN
+    INSERT INTO chunks_fts(chunks_fts, rowid, content) VALUES('delete', old.id, old.content);
+END;
+
+CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks BEGIN
+    INSERT INTO chunks_fts(chunks_fts, rowid, content) VALUES('delete', old.id, old.content);
+    INSERT INTO chunks_fts(chunks_fts, rowid, content) VALUES (new.id, new.content);
+END;
+
+-- Populate FTS5 index from existing chunks
+INSERT INTO chunks_fts(rowid, content) SELECT id, content FROM chunks;
+";
+
 /// Available migrations.
-pub const MIGRATIONS: &[Migration] = &[
-    // Future migrations will be added here
-    // Migration {
-    //     from_version: 1,
-    //     to_version: 2,
-    //     sql: "ALTER TABLE buffers ADD COLUMN new_field TEXT;",
-    // },
-];
+pub const MIGRATIONS: &[Migration] = &[Migration {
+    from_version: 1,
+    to_version: 2,
+    sql: MIGRATION_V1_TO_V2,
+}];
 
 /// Gets migrations needed to upgrade from a version.
 #[must_use]

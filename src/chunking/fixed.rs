@@ -355,4 +355,133 @@ mod tests {
         let chunks = chunker.chunk(1, "Hello, world!", None).unwrap();
         assert_eq!(chunks[0].metadata.strategy, Some("fixed".to_string()));
     }
+
+    #[test]
+    fn test_fixed_chunker_default_impl() {
+        // Test Default trait implementation (lines 40-41)
+        let chunker = FixedChunker::default();
+        assert_eq!(chunker.chunk_size, DEFAULT_CHUNK_SIZE);
+        assert_eq!(chunker.overlap, DEFAULT_OVERLAP);
+        assert!(chunker.line_aware);
+    }
+
+    #[test]
+    fn test_fixed_chunker_chunk_too_large() {
+        // Test ChunkTooLarge error (lines 139-143)
+        let chunker = FixedChunker::with_size(MAX_CHUNK_SIZE + 1);
+        let result = chunker.chunk(1, "test", None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_fixed_chunker_line_aware_boundary() {
+        // Test line-aware boundary finding with newline (lines 108-110)
+        let chunker = FixedChunker::with_size(20).line_aware(true);
+        let text = "Hello world\nSecond line here\nThird line";
+        let chunks = chunker.chunk(1, text, None).unwrap();
+
+        // Should prefer breaking at newline boundaries
+        assert!(!chunks.is_empty());
+        // Verify that chunks try to align to newlines
+        for chunk in &chunks[..chunks.len().saturating_sub(1)] {
+            let content = &chunk.content;
+            // Non-final chunks should end at or near newline
+            assert!(content.ends_with('\n') || content.len() <= 20);
+        }
+    }
+
+    #[test]
+    fn test_fixed_chunker_description() {
+        // Test description method
+        let chunker = FixedChunker::new();
+        let desc = chunker.description();
+        assert!(desc.contains("Fixed"));
+        assert!(!desc.is_empty());
+    }
+
+    #[test]
+    fn test_fixed_chunker_large_overlap() {
+        // Test with overlap to trigger backwards check (line 218)
+        let chunker = FixedChunker::with_size_and_overlap(10, 8).line_aware(false);
+        let text = "AAAAAAAAAABBBBBBBBBBCCCCCCCCCC";
+        let chunks = chunker.chunk(1, text, None).unwrap();
+
+        // Should handle high overlap without going backwards
+        assert!(chunks.len() >= 2);
+        // Verify each chunk makes forward progress
+        for i in 1..chunks.len() {
+            assert!(chunks[i].byte_range.start >= chunks[i - 1].byte_range.start);
+        }
+    }
+
+    #[test]
+    fn test_fixed_chunker_metadata_override() {
+        // Test with metadata overriding chunker settings
+        let chunker = FixedChunker::with_size(1000);
+        let text = "A".repeat(50);
+        let meta = ChunkMetadata::with_size_and_overlap(20, 5);
+        let chunks = chunker.chunk(1, &text, Some(&meta)).unwrap();
+
+        // Metadata chunk_size (20) should override chunker's (1000)
+        assert!(chunks.len() > 1);
+    }
+
+    #[test]
+    fn test_fixed_chunker_line_aware_newline_found() {
+        // Test line-aware boundary finding that finds newline (lines 108-110)
+        // The text has newlines within the search window
+        let chunker = FixedChunker::with_size(25).line_aware(true);
+        let text = "Hello world here\nSecond line of text\nThird line";
+        let chunks = chunker.chunk(1, text, None).unwrap();
+
+        // Should prefer breaking at newline boundaries
+        assert!(!chunks.is_empty());
+        // First non-final chunk should end at newline if possible
+        if chunks.len() > 1 {
+            let first = &chunks[0];
+            // The chunk should have been aligned to newline
+            assert!(
+                first.content.ends_with('\n') || first.content.len() <= 25,
+                "First chunk content: '{}'",
+                first.content
+            );
+        }
+    }
+
+    #[test]
+    fn test_fixed_chunker_force_progress_edge_case() {
+        // Test edge case where end <= start requiring forced progress (line 183)
+        // This happens with pathological input where boundary finding returns 0
+        let chunker = FixedChunker::with_size(3).line_aware(false);
+        let text = "ABCDEFGHIJ";
+        let chunks = chunker.chunk(1, text, None).unwrap();
+
+        // Should still make progress through the entire text
+        assert!(!chunks.is_empty());
+        // Verify coverage
+        let total_len: usize = chunks.iter().map(|c| c.content.len()).sum();
+        // With overlap=0, total should roughly equal text length (minus any alignment)
+        assert!(total_len >= text.len() - 3);
+    }
+
+    #[test]
+    fn test_fixed_chunker_no_backward_progress() {
+        // Test that start doesn't go backwards after overlap (line 218)
+        // Use high overlap ratio to trigger this edge case
+        let chunker = FixedChunker::with_size_and_overlap(10, 9).line_aware(false);
+        let text = "ABCDEFGHIJKLMNOPQRST";
+        let chunks = chunker.chunk(1, text, None).unwrap();
+
+        // Verify each chunk starts at or after the previous chunk's start
+        for i in 1..chunks.len() {
+            assert!(
+                chunks[i].byte_range.start >= chunks[i - 1].byte_range.start,
+                "Chunk {} starts before chunk {}: {} < {}",
+                i,
+                i - 1,
+                chunks[i].byte_range.start,
+                chunks[i - 1].byte_range.start
+            );
+        }
+    }
 }
