@@ -247,33 +247,36 @@ impl RlmFs {
             return;
         }
 
-        let storage = match self.storage.read() {
-            Ok(s) => s,
-            Err(_) => return,
-        };
-
         let config = SearchConfig::new()
             .with_top_k(20)
             .with_threshold(0.1)
             .with_semantic(true)
             .with_bm25(true);
 
-        let results =
-            hybrid_search(&storage, self.embedder.as_ref(), query, &config).unwrap_or_default();
+        // Scope the storage lock to release it before writing results
+        let json = {
+            let storage = match self.storage.read() {
+                Ok(s) => s,
+                Err(_) => return,
+            };
 
-        let json: Vec<_> = results
-            .iter()
-            .map(|r| {
-                serde_json::json!({
-                    "chunk_id": r.chunk_id,
-                    "buffer_id": r.buffer_id,
-                    "index": r.index,
-                    "score": r.score,
-                    "semantic_score": r.semantic_score,
-                    "bm25_score": r.bm25_score
+            let results =
+                hybrid_search(&storage, self.embedder.as_ref(), query, &config).unwrap_or_default();
+
+            results
+                .iter()
+                .map(|r| {
+                    serde_json::json!({
+                        "chunk_id": r.chunk_id,
+                        "buffer_id": r.buffer_id,
+                        "index": r.index,
+                        "score": r.score,
+                        "semantic_score": r.semantic_score,
+                        "bm25_score": r.bm25_score
+                    })
                 })
-            })
-            .collect();
+                .collect::<Vec<_>>()
+        };
 
         if let Ok(mut cached) = self.search_results.write() {
             *cached = serde_json::to_vec_pretty(&json).unwrap_or_else(|_| b"[]".to_vec());
