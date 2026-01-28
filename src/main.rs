@@ -5,12 +5,14 @@
 #![allow(clippy::print_stdout, clippy::print_stderr)]
 
 use clap::Parser;
+use rlm_rs::cli::output::{OutputFormat, format_error};
 use rlm_rs::cli::{Cli, execute};
 use std::io::{self, Write};
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
+    let format = OutputFormat::parse(&cli.format);
 
     match execute(&cli) {
         Ok(output) => {
@@ -26,7 +28,16 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Err(e) => {
-            eprintln!("Error: {e}");
+            let error_output = format_error(&e, format);
+            match format {
+                OutputFormat::Json | OutputFormat::Ndjson => {
+                    // JSON errors go to stdout for programmatic parsing
+                    println!("{error_output}");
+                }
+                OutputFormat::Text => {
+                    eprintln!("Error: {error_output}");
+                }
+            }
             ExitCode::FAILURE
         }
     }

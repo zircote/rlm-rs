@@ -41,6 +41,11 @@ pub enum Commands {
     /// Initialize the RLM database.
     ///
     /// Creates the database file and schema if they don't exist.
+    #[command(after_help = r#"Examples:
+  rlm-rs init                    # Initialize in current directory
+  rlm-rs init --force            # Re-initialize (destroys existing data)
+  rlm-rs --db-path ./my.db init  # Initialize with custom path
+"#)]
     Init {
         /// Force re-initialization (destroys existing data).
         #[arg(short, long)]
@@ -58,6 +63,14 @@ pub enum Commands {
     },
 
     /// Load a context file into a buffer.
+    #[command(after_help = r#"Examples:
+  rlm-rs load large_file.txt                      # Load with semantic chunking
+  rlm-rs load src/main.rs --name main-source      # Load with custom name
+  rlm-rs load src/lib.rs --chunker code           # Code-aware chunking
+  rlm-rs load doc.md --chunker fixed --chunk-size 2000
+  rlm-rs load big.log --chunker parallel          # Parallel for large files
+  rlm-rs --format json load file.txt | jq '.buffer_id'
+"#)]
     Load {
         /// Path to the context file.
         file: PathBuf,
@@ -66,7 +79,7 @@ pub enum Commands {
         #[arg(short, long)]
         name: Option<String>,
 
-        /// Chunking strategy (fixed, semantic, parallel).
+        /// Chunking strategy (fixed, semantic, code, parallel).
         #[arg(short, long, default_value = "semantic")]
         chunker: String,
 
@@ -81,10 +94,21 @@ pub enum Commands {
 
     /// List all buffers.
     #[command(name = "list", alias = "ls")]
+    #[command(after_help = r#"Examples:
+  rlm-rs list                            # List all buffers
+  rlm-rs ls                              # Alias for list
+  rlm-rs --format json list | jq '.[].name'
+"#)]
     ListBuffers,
 
     /// Show buffer details.
     #[command(name = "show")]
+    #[command(after_help = r#"Examples:
+  rlm-rs show main-source                # Show buffer by name
+  rlm-rs show 1                          # Show buffer by ID
+  rlm-rs show 1 --chunks                 # Include chunk list
+  rlm-rs --format json show 1            # JSON output
+"#)]
     ShowBuffer {
         /// Buffer ID or name.
         buffer: String,
@@ -185,6 +209,39 @@ pub enum Commands {
         content: Option<String>,
     },
 
+    /// Update an existing buffer with new content.
+    ///
+    /// Re-chunks the buffer and incrementally updates embeddings.
+    #[command(after_help = r#"Examples:
+  cat updated.txt | rlm-rs update main-source   # Update from stdin
+  rlm-rs update my-buffer "new content"         # Update with inline content
+  rlm-rs update my-buffer --embed               # Update and generate embeddings
+  rlm-rs update my-buffer --chunk-size 500      # Custom chunk size"#)]
+    #[command(alias = "update")]
+    UpdateBuffer {
+        /// Buffer ID or name.
+        buffer: String,
+
+        /// New content (reads from stdin if not provided).
+        content: Option<String>,
+
+        /// Automatically embed new chunks after update.
+        #[arg(short, long)]
+        embed: bool,
+
+        /// Chunking strategy (semantic, fixed, parallel).
+        #[arg(long, default_value = "semantic")]
+        strategy: String,
+
+        /// Chunk size in characters.
+        #[arg(long, default_value_t = DEFAULT_CHUNK_SIZE)]
+        chunk_size: usize,
+
+        /// Chunk overlap in characters.
+        #[arg(long, default_value_t = DEFAULT_OVERLAP)]
+        overlap: usize,
+    },
+
     /// Export all buffers to a file.
     ExportBuffers {
         /// Output file path (stdout if not specified).
@@ -226,6 +283,15 @@ pub enum Commands {
     /// Search chunks using hybrid semantic + BM25 search.
     ///
     /// Returns chunk IDs and scores. Use `chunk get <id>` to retrieve content.
+    #[command(after_help = r#"Examples:
+  rlm-rs search "error handling"                  # Hybrid search (default)
+  rlm-rs search "authentication" -k 5             # Top 5 results
+  rlm-rs search "config" --mode bm25              # BM25 keyword search only
+  rlm-rs search "API" --mode semantic             # Semantic search only
+  rlm-rs search "bug fix" --buffer main-source    # Filter by buffer
+  rlm-rs search "auth" --preview                  # Include content preview
+  rlm-rs --format json search "test" | jq '.results[].chunk_id'
+"#)]
     Search {
         /// Search query text.
         query: String,
@@ -249,6 +315,86 @@ pub enum Commands {
         /// Filter by buffer ID or name.
         #[arg(short, long)]
         buffer: Option<String>,
+
+        /// Include content preview in results.
+        #[arg(short, long)]
+        preview: bool,
+
+        /// Preview length in characters.
+        #[arg(long, default_value = "150")]
+        preview_len: usize,
+    },
+
+    /// Aggregate findings from analyst subagents.
+    ///
+    /// Reads JSON findings from stdin or a buffer, groups by relevance,
+    /// deduplicates, and outputs a synthesizer-ready report.
+    #[command(after_help = r#"Examples:
+  cat findings.json | rlm-rs aggregate           # Aggregate from stdin
+  rlm-rs aggregate --buffer findings             # Read from buffer
+  rlm-rs aggregate --min-relevance medium        # Filter low relevance
+  rlm-rs --format json aggregate | jq '.findings'
+
+Input format (JSON array of analyst findings):
+[
+  {"chunk_id": 12, "relevance": "high", "findings": ["..."], "summary": "..."},
+  {"chunk_id": 27, "relevance": "medium", "findings": ["..."], "summary": "..."}
+]"#)]
+    Aggregate {
+        /// Read findings from a buffer instead of stdin.
+        #[arg(short, long)]
+        buffer: Option<String>,
+
+        /// Minimum relevance to include (none, low, medium, high).
+        #[arg(long, default_value = "low")]
+        min_relevance: String,
+
+        /// Group findings by this field (`chunk_id`, `relevance`, `none`).
+        #[arg(long, default_value = "relevance")]
+        group_by: String,
+
+        /// Sort findings by this field (`relevance`, `chunk_id`, `findings_count`).
+        #[arg(long, default_value = "relevance")]
+        sort_by: String,
+
+        /// Store aggregated results in a new buffer with this name.
+        #[arg(short, long)]
+        output_buffer: Option<String>,
+    },
+
+    /// Dispatch chunks for parallel subagent processing.
+    ///
+    /// Splits chunks into batches suitable for parallel subagent analysis.
+    /// Returns batch assignments with chunk IDs and metadata.
+    #[command(after_help = r#"Examples:
+  rlm-rs dispatch my-buffer                     # Dispatch all chunks
+  rlm-rs dispatch my-buffer --batch-size 5      # 5 chunks per batch
+  rlm-rs dispatch my-buffer --workers 4         # Split into 4 batches
+  rlm-rs dispatch my-buffer --query "error"     # Only relevant chunks
+  rlm-rs --format json dispatch my-buffer       # JSON for orchestrator"#)]
+    Dispatch {
+        /// Buffer ID or name.
+        buffer: String,
+
+        /// Number of chunks per batch (overrides --workers).
+        #[arg(long, default_value = "10")]
+        batch_size: usize,
+
+        /// Number of worker batches to create (alternative to --batch-size).
+        #[arg(long)]
+        workers: Option<usize>,
+
+        /// Filter to chunks matching this search query.
+        #[arg(short, long)]
+        query: Option<String>,
+
+        /// Search mode for query filtering (hybrid, semantic, bm25).
+        #[arg(long, default_value = "hybrid")]
+        mode: String,
+
+        /// Minimum similarity threshold for query filtering.
+        #[arg(long, default_value = "0.3")]
+        threshold: f32,
     },
 
     /// Chunk operations (get, list, embed).
@@ -263,6 +409,11 @@ pub enum ChunkCommands {
     ///
     /// Returns the chunk content and metadata. This is the primary
     /// pass-by-reference retrieval mechanism for subagents.
+    #[command(after_help = r#"Examples:
+  rlm-rs chunk get 42                    # Get chunk content
+  rlm-rs chunk get 42 --metadata         # Include byte range, token count
+  rlm-rs --format json chunk get 42      # JSON output for programmatic use
+"#)]
     Get {
         /// Chunk ID.
         id: i64,
@@ -273,6 +424,11 @@ pub enum ChunkCommands {
     },
 
     /// List chunks for a buffer.
+    #[command(after_help = r#"Examples:
+  rlm-rs chunk list main-source          # List chunk IDs
+  rlm-rs chunk list 1 --preview          # Show content preview
+  rlm-rs --format json chunk list 1 | jq '.[].id'
+"#)]
     List {
         /// Buffer ID or name.
         buffer: String,
@@ -287,6 +443,10 @@ pub enum ChunkCommands {
     },
 
     /// Generate embeddings for buffer chunks.
+    #[command(after_help = r#"Examples:
+  rlm-rs chunk embed main-source         # Generate embeddings
+  rlm-rs chunk embed 1 --force           # Re-embed existing chunks
+"#)]
     Embed {
         /// Buffer ID or name.
         buffer: String,

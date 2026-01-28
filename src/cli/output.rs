@@ -14,6 +14,9 @@ pub enum OutputFormat {
     Text,
     /// JSON output.
     Json,
+    /// Newline-delimited JSON (NDJSON) for streaming.
+    /// Each record is a single JSON object on its own line.
+    Ndjson,
 }
 
 impl OutputFormat {
@@ -22,8 +25,15 @@ impl OutputFormat {
     pub fn parse(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "json" => Self::Json,
+            "ndjson" | "jsonl" | "stream" => Self::Ndjson,
             _ => Self::Text,
         }
+    }
+
+    /// Returns true if this format is a streaming format.
+    #[must_use]
+    pub const fn is_streaming(&self) -> bool {
+        matches!(self, Self::Ndjson)
     }
 }
 
@@ -32,7 +42,7 @@ impl OutputFormat {
 pub fn format_status(stats: &StorageStats, format: OutputFormat) -> String {
     match format {
         OutputFormat::Text => format_status_text(stats),
-        OutputFormat::Json => format_json(stats),
+        OutputFormat::Json | OutputFormat::Ndjson => format_json(stats),
     }
 }
 
@@ -64,7 +74,7 @@ fn format_status_text(stats: &StorageStats) -> String {
 pub fn format_buffer_list(buffers: &[Buffer], format: OutputFormat) -> String {
     match format {
         OutputFormat::Text => format_buffer_list_text(buffers),
-        OutputFormat::Json => format_json(&buffers),
+        OutputFormat::Json | OutputFormat::Ndjson => format_json(&buffers),
     }
 }
 
@@ -115,7 +125,7 @@ fn format_buffer_list_text(buffers: &[Buffer]) -> String {
 pub fn format_buffer(buffer: &Buffer, chunks: Option<&[Chunk]>, format: OutputFormat) -> String {
     match format {
         OutputFormat::Text => format_buffer_text(buffer, chunks),
-        OutputFormat::Json => {
+        OutputFormat::Json | OutputFormat::Ndjson => {
             #[derive(Serialize)]
             struct BufferWithChunks<'a> {
                 buffer: &'a Buffer,
@@ -192,7 +202,7 @@ pub fn format_peek(content: &str, start: usize, end: usize, format: OutputFormat
             output.push_str("---\n");
             output
         }
-        OutputFormat::Json => {
+        OutputFormat::Json | OutputFormat::Ndjson => {
             #[derive(Serialize)]
             struct PeekOutput<'a> {
                 start: usize,
@@ -215,7 +225,7 @@ pub fn format_peek(content: &str, start: usize, end: usize, format: OutputFormat
 pub fn format_grep_matches(matches: &[GrepMatch], pattern: &str, format: OutputFormat) -> String {
     match format {
         OutputFormat::Text => format_grep_text(matches, pattern),
-        OutputFormat::Json => format_json(&matches),
+        OutputFormat::Json | OutputFormat::Ndjson => format_json(&matches),
     }
 }
 
@@ -251,7 +261,7 @@ pub fn format_chunk_indices(indices: &[(usize, usize)], format: OutputFormat) ->
             }
             output
         }
-        OutputFormat::Json => format_json(&indices),
+        OutputFormat::Json | OutputFormat::Ndjson => format_json(&indices),
     }
 }
 
@@ -267,7 +277,7 @@ pub fn format_write_chunks_result(paths: &[String], format: OutputFormat) -> Str
             }
             output
         }
-        OutputFormat::Json => format_json(&paths),
+        OutputFormat::Json | OutputFormat::Ndjson => format_json(&paths),
     }
 }
 
@@ -283,7 +293,7 @@ pub fn format_context(context: &Context, format: OutputFormat) -> String {
             let _ = writeln!(output, "  Buffers:   {}", context.buffer_count());
             output
         }
-        OutputFormat::Json => format_json(&context),
+        OutputFormat::Json | OutputFormat::Ndjson => format_json(&context),
     }
 }
 
@@ -301,6 +311,103 @@ pub struct GrepMatch {
 /// Formats a value as JSON.
 fn format_json<T: Serialize>(value: &T) -> String {
     serde_json::to_string_pretty(value).unwrap_or_else(|_| "{}".to_string())
+}
+
+/// Formats an error for output.
+///
+/// When format is JSON, returns a structured error object.
+/// When format is Text, returns the error message string.
+#[must_use]
+pub fn format_error(error: &crate::Error, format: OutputFormat) -> String {
+    match format {
+        OutputFormat::Text => error.to_string(),
+        OutputFormat::Json | OutputFormat::Ndjson => {
+            let (error_type, suggestion) = get_error_details(error);
+            let json = serde_json::json!({
+                "success": false,
+                "error": {
+                    "type": error_type,
+                    "message": error.to_string(),
+                    "suggestion": suggestion
+                }
+            });
+            serde_json::to_string_pretty(&json).unwrap_or_else(|_| "{}".to_string())
+        }
+    }
+}
+
+/// Extracts error type and recovery suggestion from an error.
+const fn get_error_details(error: &crate::Error) -> (&'static str, Option<&'static str>) {
+    use crate::error::{ChunkingError, CommandError, IoError, StorageError};
+
+    match error {
+        crate::Error::Storage(e) => match e {
+            StorageError::NotInitialized => (
+                "NotInitialized",
+                Some("Run 'rlm-rs init' to initialize the database"),
+            ),
+            StorageError::BufferNotFound { .. } => (
+                "BufferNotFound",
+                Some("Run 'rlm-rs list' to see available buffers"),
+            ),
+            StorageError::ChunkNotFound { .. } => (
+                "ChunkNotFound",
+                Some("Run 'rlm-rs chunk list <buffer>' to see valid chunk IDs"),
+            ),
+            StorageError::ContextNotFound => ("ContextNotFound", Some("Context not yet created")),
+            StorageError::Database(_) => ("DatabaseError", None),
+            StorageError::Migration(_) => ("MigrationError", None),
+            StorageError::Transaction(_) => ("TransactionError", None),
+            StorageError::Serialization(_) => ("SerializationError", None),
+            #[cfg(feature = "usearch-hnsw")]
+            StorageError::VectorSearch(_) => ("VectorSearchError", None),
+            #[cfg(feature = "fastembed-embeddings")]
+            StorageError::Embedding(_) => {
+                ("EmbeddingError", Some("Check disk space and try again"))
+            }
+        },
+        crate::Error::Io(e) => match e {
+            IoError::FileNotFound { .. } => ("FileNotFound", Some("Verify the file path exists")),
+            IoError::ReadFailed { .. } => ("ReadError", None),
+            IoError::WriteFailed { .. } => ("WriteError", None),
+            IoError::MmapFailed { .. } => ("MemoryMapError", None),
+            IoError::DirectoryFailed { .. } => ("DirectoryError", None),
+            IoError::PathTraversal { .. } => (
+                "PathTraversalDenied",
+                Some("Path traversal outside allowed directory is not permitted"),
+            ),
+            IoError::Generic(_) => ("IoError", None),
+        },
+        crate::Error::Chunking(e) => match e {
+            ChunkingError::InvalidUtf8 { .. } => ("InvalidUtf8", None),
+            ChunkingError::ChunkTooLarge { .. } => {
+                ("ChunkTooLarge", Some("Use a smaller --chunk-size value"))
+            }
+            ChunkingError::InvalidConfig { .. } => ("InvalidConfig", None),
+            ChunkingError::OverlapTooLarge { .. } => (
+                "OverlapTooLarge",
+                Some("Overlap must be less than chunk size"),
+            ),
+            ChunkingError::ParallelFailed { .. } => ("ParallelError", None),
+            ChunkingError::SemanticFailed(_) => ("SemanticError", None),
+            ChunkingError::Regex(_) => ("RegexError", None),
+            ChunkingError::UnknownStrategy { .. } => (
+                "UnknownStrategy",
+                Some("Valid strategies: fixed, semantic, parallel"),
+            ),
+        },
+        crate::Error::Command(e) => match e {
+            CommandError::UnknownCommand(_) => ("UnknownCommand", None),
+            CommandError::InvalidArgument(_) => ("InvalidArgument", None),
+            CommandError::MissingArgument(_) => ("MissingArgument", None),
+            CommandError::ExecutionFailed(_) => ("ExecutionFailed", None),
+            CommandError::Cancelled => ("Cancelled", None),
+            CommandError::OutputFormat(_) => ("OutputFormatError", None),
+        },
+        crate::Error::InvalidState { .. } => ("InvalidState", None),
+        crate::Error::Config { .. } => ("ConfigError", None),
+        crate::Error::Search(_) => ("SearchError", None),
+    }
 }
 
 /// Formats a byte size as human-readable.
@@ -339,6 +446,17 @@ mod tests {
         assert_eq!(OutputFormat::parse("JSON"), OutputFormat::Json);
         assert_eq!(OutputFormat::parse("text"), OutputFormat::Text);
         assert_eq!(OutputFormat::parse("unknown"), OutputFormat::Text);
+    }
+
+    #[test]
+    fn test_output_format_ndjson() {
+        assert_eq!(OutputFormat::parse("ndjson"), OutputFormat::Ndjson);
+        assert_eq!(OutputFormat::parse("NDJSON"), OutputFormat::Ndjson);
+        assert_eq!(OutputFormat::parse("jsonl"), OutputFormat::Ndjson);
+        assert_eq!(OutputFormat::parse("stream"), OutputFormat::Ndjson);
+        assert!(OutputFormat::Ndjson.is_streaming());
+        assert!(!OutputFormat::Json.is_streaming());
+        assert!(!OutputFormat::Text.is_streaming());
     }
 
     #[test]
