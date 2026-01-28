@@ -1,9 +1,18 @@
 //! Hybrid search with semantic and lexical retrieval.
 //!
 //! Combines vector similarity search with FTS5 BM25 using Reciprocal Rank Fusion (RRF).
+//!
+//! ## Features
+//!
+//! - **Semantic Search**: Vector similarity using embeddings
+//! - **BM25 Search**: Full-text search using `SQLite` `FTS5`
+//! - **Hybrid Search**: Combines both using Reciprocal Rank Fusion
+//! - **HNSW Index**: Optional scalable approximate nearest neighbor search (requires `usearch-hnsw` feature)
 
+pub mod hnsw;
 mod rrf;
 
+pub use hnsw::{HnswConfig, HnswIndex, HnswResult};
 pub use rrf::{RrfConfig, reciprocal_rank_fusion, weighted_rrf};
 
 use crate::embedding::{Embedder, cosine_similarity};
@@ -31,6 +40,8 @@ pub struct SearchResult {
     pub semantic_score: Option<f32>,
     /// BM25 score (if available).
     pub bm25_score: Option<f64>,
+    /// Content preview (first N characters, if requested).
+    pub content_preview: Option<String>,
 }
 
 /// Configuration for hybrid search.
@@ -60,6 +71,9 @@ impl Default for SearchConfig {
     }
 }
 
+/// Default preview length in characters.
+pub const DEFAULT_PREVIEW_LEN: usize = 150;
+
 impl SearchResult {
     /// Creates a new search result, looking up chunk metadata from storage.
     ///
@@ -82,8 +96,45 @@ impl SearchResult {
                 score,
                 semantic_score,
                 bm25_score,
+                content_preview: None,
             })
     }
+}
+
+/// Populates content previews for search results.
+///
+/// # Arguments
+///
+/// * `storage` - The storage backend.
+/// * `results` - Search results to populate.
+/// * `preview_len` - Maximum preview length in characters.
+///
+/// # Errors
+///
+/// Returns an error if chunk retrieval fails.
+pub fn populate_previews(
+    storage: &SqliteStorage,
+    results: &mut [SearchResult],
+    preview_len: usize,
+) -> Result<()> {
+    for result in results.iter_mut() {
+        if let Some(chunk) = storage.get_chunk(result.chunk_id)? {
+            let content = &chunk.content;
+            let preview = if content.len() <= preview_len {
+                content.clone()
+            } else {
+                // Find a valid UTF-8 boundary
+                let end = crate::io::find_char_boundary(content, preview_len);
+                let mut preview = content[..end].to_string();
+                if end < content.len() {
+                    preview.push_str("...");
+                }
+                preview
+            };
+            result.content_preview = Some(preview);
+        }
+    }
+    Ok(())
 }
 
 impl SearchConfig {
@@ -345,8 +396,8 @@ pub fn embed_buffer_chunks(
 
     let count = batch.len();
 
-    // Store embeddings
-    storage.store_embeddings_batch(&batch, None)?;
+    // Store embeddings with model name for version tracking
+    storage.store_embeddings_batch(&batch, Some(embedder.model_name()))?;
 
     Ok(count)
 }
@@ -375,6 +426,198 @@ pub fn buffer_fully_embedded(storage: &SqliteStorage, buffer_id: i64) -> Result<
     }
 
     Ok(embedded_count == chunk_count)
+}
+
+/// Checks if existing embeddings were created with a different model.
+///
+/// Returns `Some(existing_model)` if there's a model mismatch, `None` otherwise.
+///
+/// # Errors
+///
+/// Returns an error if the query fails.
+pub fn check_model_mismatch(
+    storage: &SqliteStorage,
+    buffer_id: i64,
+    current_model: &str,
+) -> Result<Option<String>> {
+    let models = storage.get_embedding_models(buffer_id)?;
+
+    // If no embeddings exist, no mismatch
+    if models.is_empty() {
+        return Ok(None);
+    }
+
+    // Check if any existing model differs from the current one
+    for model in models {
+        if model != current_model {
+            return Ok(Some(model));
+        }
+    }
+
+    Ok(None)
+}
+
+/// Information about embedding model versions for a buffer.
+#[derive(Debug, Clone)]
+pub struct EmbeddingModelInfo {
+    /// Model names and their embedding counts.
+    pub models: Vec<(Option<String>, i64)>,
+    /// Total number of embeddings.
+    pub total_embeddings: i64,
+    /// Whether there are mixed model versions.
+    pub has_mixed_models: bool,
+}
+
+/// Gets embedding model information for a buffer.
+///
+/// # Errors
+///
+/// Returns an error if the query fails.
+pub fn get_embedding_model_info(
+    storage: &SqliteStorage,
+    buffer_id: i64,
+) -> Result<EmbeddingModelInfo> {
+    let models = storage.get_embedding_model_counts(buffer_id)?;
+    let total_embeddings: i64 = models.iter().map(|(_, count)| count).sum();
+    let distinct_models: std::collections::HashSet<_> =
+        models.iter().map(|(name, _)| name.as_deref()).collect();
+    let has_mixed_models = distinct_models.len() > 1;
+
+    Ok(EmbeddingModelInfo {
+        models,
+        total_embeddings,
+        has_mixed_models,
+    })
+}
+
+/// Result of an incremental embedding operation.
+#[derive(Debug, Clone)]
+pub struct IncrementalEmbedResult {
+    /// Number of new embeddings created.
+    pub embedded_count: usize,
+    /// Number of chunks that were skipped (already embedded with correct model).
+    pub skipped_count: usize,
+    /// Number of embeddings that were replaced (different model).
+    pub replaced_count: usize,
+    /// Total chunks in the buffer.
+    pub total_chunks: usize,
+    /// Model name used for embedding.
+    pub model_name: String,
+}
+
+impl IncrementalEmbedResult {
+    /// Returns true if any embeddings were created or updated.
+    #[must_use]
+    pub const fn had_changes(&self) -> bool {
+        self.embedded_count > 0 || self.replaced_count > 0
+    }
+
+    /// Returns the percentage of chunks now embedded.
+    #[must_use]
+    #[allow(clippy::cast_precision_loss)] // Acceptable for percentage calculation
+    pub fn completion_percentage(&self) -> f64 {
+        if self.total_chunks == 0 {
+            100.0
+        } else {
+            let completed = self.embedded_count + self.skipped_count + self.replaced_count;
+            (completed as f64 / self.total_chunks as f64) * 100.0
+        }
+    }
+}
+
+/// Incrementally embeds chunks in a buffer.
+///
+/// Only embeds chunks that:
+/// - Have no embedding, OR
+/// - Have an embedding from a different model (if `force_reembed` is true)
+///
+/// This is more efficient than `embed_buffer_chunks` for large buffers
+/// where only a few chunks have changed.
+///
+/// # Arguments
+///
+/// * `storage` - The storage backend.
+/// * `embedder` - The embedder to use.
+/// * `buffer_id` - The buffer to embed.
+/// * `force_reembed` - If true, re-embeds chunks with different models.
+///
+/// # Returns
+///
+/// An `IncrementalEmbedResult` with statistics about what was done.
+///
+/// # Errors
+///
+/// Returns an error if embedding generation or storage fails.
+pub fn embed_buffer_chunks_incremental(
+    storage: &mut SqliteStorage,
+    embedder: &dyn Embedder,
+    buffer_id: i64,
+    force_reembed: bool,
+) -> Result<IncrementalEmbedResult> {
+    let current_model = embedder.model_name();
+    let stats = storage.get_embedding_stats(buffer_id)?;
+    let total_chunks = stats.total_chunks;
+
+    // Determine which chunks need embedding
+    let model_to_check = if force_reembed {
+        Some(current_model)
+    } else {
+        None
+    };
+
+    let chunk_ids_to_embed = storage.get_chunks_needing_embedding(buffer_id, model_to_check)?;
+
+    if chunk_ids_to_embed.is_empty() {
+        return Ok(IncrementalEmbedResult {
+            embedded_count: 0,
+            skipped_count: total_chunks,
+            replaced_count: 0,
+            total_chunks,
+            model_name: current_model.to_string(),
+        });
+    }
+
+    // Load the chunks we need to embed
+    let all_chunks = storage.get_chunks(buffer_id)?;
+    let chunks_to_embed: Vec<_> = all_chunks
+        .iter()
+        .filter(|c| c.id.is_some_and(|id| chunk_ids_to_embed.contains(&id)))
+        .collect();
+
+    // Count how many are replacements (had embeddings before)
+    let mut replaced_count = 0;
+    for chunk in &chunks_to_embed {
+        if let Some(id) = chunk.id
+            && storage.has_embedding(id)?
+        {
+            replaced_count += 1;
+        }
+    }
+
+    // Generate embeddings
+    let texts: Vec<&str> = chunks_to_embed.iter().map(|c| c.content.as_str()).collect();
+    let embeddings = embedder.embed_batch(&texts)?;
+
+    // Store embeddings
+    let batch: Vec<(i64, Vec<f32>)> = chunks_to_embed
+        .iter()
+        .zip(embeddings)
+        .filter_map(|(chunk, embedding)| chunk.id.map(|id| (id, embedding)))
+        .collect();
+
+    let embedded_count = batch.len();
+    storage.store_embeddings_batch(&batch, Some(current_model))?;
+
+    let new_embeddings = embedded_count - replaced_count;
+    let skipped_count = total_chunks - embedded_count;
+
+    Ok(IncrementalEmbedResult {
+        embedded_count: new_embeddings,
+        skipped_count,
+        replaced_count,
+        total_chunks,
+        model_name: current_model.to_string(),
+    })
 }
 
 #[cfg(test)]
@@ -600,5 +843,55 @@ mod tests {
         // Don't embed chunks - search should return empty
         let results = search_semantic(&storage, &embedder, "test query", 10, 0.5).unwrap();
         assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_incremental_embed_new_chunks() {
+        let mut storage = setup_storage_with_chunks();
+        let embedder = FallbackEmbedder::new(DEFAULT_DIMENSIONS);
+
+        // First incremental embed - should embed all 3 chunks
+        let result = embed_buffer_chunks_incremental(&mut storage, &embedder, 1, false).unwrap();
+        assert_eq!(result.embedded_count, 3);
+        assert_eq!(result.skipped_count, 0);
+        assert_eq!(result.replaced_count, 0);
+        assert_eq!(result.total_chunks, 3);
+        assert!(result.had_changes());
+
+        // Second incremental embed - should skip all (already embedded)
+        let result2 = embed_buffer_chunks_incremental(&mut storage, &embedder, 1, false).unwrap();
+        assert_eq!(result2.embedded_count, 0);
+        assert_eq!(result2.skipped_count, 3);
+        assert_eq!(result2.replaced_count, 0);
+        assert!(!result2.had_changes());
+    }
+
+    #[test]
+    fn test_incremental_embed_force_reembed() {
+        let mut storage = setup_storage_with_chunks();
+        let embedder = FallbackEmbedder::new(DEFAULT_DIMENSIONS);
+
+        // First embed normally
+        embed_buffer_chunks_incremental(&mut storage, &embedder, 1, false).unwrap();
+
+        // Force re-embed - should replace all 3
+        let result = embed_buffer_chunks_incremental(&mut storage, &embedder, 1, true).unwrap();
+        // All chunks already have correct model, so no changes needed even with force
+        // (force only affects different-model embeddings)
+        assert_eq!(result.skipped_count, 3);
+        assert!(!result.had_changes());
+    }
+
+    #[test]
+    fn test_incremental_embed_result_completion() {
+        let result = IncrementalEmbedResult {
+            embedded_count: 2,
+            skipped_count: 3,
+            replaced_count: 0,
+            total_chunks: 5,
+            model_name: "test".to_string(),
+        };
+        assert!(result.had_changes());
+        assert!((result.completion_percentage() - 100.0).abs() < f64::EPSILON);
     }
 }
