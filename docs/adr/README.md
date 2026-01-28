@@ -16,6 +16,9 @@ This directory contains Architecture Decision Records (ADRs) for rlm-rs.
 | [008](008-hybrid-search-with-rrf.md) | Hybrid Search with Reciprocal Rank Fusion | accepted | 2025-01-17 |
 | [009](009-reduced-default-chunk-size.md) | Reduced Default Chunk Size | accepted | 2025-01-18 |
 | [010](010-switch-to-bge-m3-model.md) | Switch to BGE-M3 Embedding Model | accepted | 2025-01-20 |
+| [011](011-error-handling-with-thiserror.md) | Error Handling with thiserror | accepted | 2025-01-27 |
+| [012](012-concurrency-model-with-rayon.md) | Concurrency Model with Rayon | accepted | 2025-01-27 |
+| [013](013-feature-flag-architecture.md) | Feature Flag Architecture | accepted | 2025-01-27 |
 
 ## Status Legend
 
