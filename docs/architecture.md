@@ -40,7 +40,8 @@ RLM-RS implements the Recursive Language Model (RLM) pattern from [arXiv:2512.24
 │  │  ─────────  │       ───────           │ ─────────  │    ───     ││
 │  │  Fixed     │       SQLite            │  BGE-M3   │   Reader   ││
 │  │  Semantic  │       FTS5 (BM25)       │ fastembed │   (mmap)   ││
-│  │  Parallel  │       Hybrid Search     │  (1024d)  │   Unicode  ││
+│  │  Code      │       Hybrid Search     │  (1024d)  │   Unicode  ││
+│  │  Parallel  │       HNSW (optional)   │           │            ││
 │  └────────────┴─────────────────────────┴────────────┴────────────┘│
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -64,6 +65,7 @@ src/
 │   ├── traits.rs    # Chunker trait definition
 │   ├── fixed.rs     # Fixed-size chunking
 │   ├── semantic.rs  # Sentence/paragraph-aware chunking
+│   ├── code.rs      # Language-aware code chunking
 │   └── parallel.rs  # Multi-threaded chunking
 │
 ├── embedding/       # Embedding generation
@@ -181,9 +183,25 @@ pub trait Chunker: Send + Sync {
 
 | Strategy | Algorithm | Use Case |
 |----------|-----------|----------|
-| `SemanticChunker` | Unicode sentence/paragraph boundaries | Markdown, prose, code |
+| `SemanticChunker` | Unicode sentence/paragraph boundaries | Markdown, prose |
+| `CodeChunker` | Language-aware function/class boundaries | Source code files |
 | `FixedChunker` | Character boundaries with UTF-8 safety | Logs, raw text |
 | `ParallelChunker` | Rayon-parallelized fixed chunking | Large files (>10MB) |
+
+### Code Chunker Languages
+
+The `CodeChunker` uses regex-based pattern matching for multiple languages:
+
+| Language | Extensions | Boundary Detection |
+|----------|------------|-------------------|
+| Rust | .rs | `fn`, `impl`, `struct`, `enum`, `mod` |
+| Python | .py | `def`, `class`, `async def` |
+| JavaScript/TypeScript | .js, .jsx, .ts, .tsx | `function`, `class`, `const =` |
+| Go | .go | `func`, `type` |
+| Java | .java | `class`, `interface`, method signatures |
+| C/C++ | .c, .cpp, .h, .hpp | Function definitions |
+| Ruby | .rb | `def`, `class`, `module` |
+| PHP | .php | `function`, `class` |
 
 ### Default Configuration
 
@@ -430,11 +448,59 @@ proptest! {
 }
 ```
 
+## Search System
+
+### Hybrid Search Architecture
+
+rlm-rs implements a hybrid search system combining multiple retrieval methods:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Search Query                            │
+└─────────────────────────────────────────────────────────────┘
+                              │
+              ┌───────────────┼───────────────┐
+              ▼               ▼               ▼
+    ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+    │ Semantic Search │ │  BM25 Search    │ │  HNSW Index     │
+    │  (Embeddings)   │ │  (FTS5)         │ │  (Optional)     │
+    └────────┬────────┘ └────────┬────────┘ └────────┬────────┘
+             │                   │                   │
+             └───────────────────┼───────────────────┘
+                                 ▼
+                    ┌───────────────────────┐
+                    │  Reciprocal Rank      │
+                    │  Fusion (RRF)         │
+                    └───────────────────────┘
+                                 │
+                                 ▼
+                    ┌───────────────────────┐
+                    │   Ranked Results      │
+                    └───────────────────────┘
+```
+
+### Embedding System
+
+| Component | Implementation | Details |
+|-----------|---------------|---------|
+| Model | BGE-M3 via fastembed | 1024 dimensions |
+| Fallback | Hash-based embedder | When fastembed unavailable |
+| Storage | SQLite BLOB | Compact binary storage |
+| Incremental | `embed_buffer_chunks_incremental` | Only new/changed chunks |
+
+### HNSW Index (Optional)
+
+When the `usearch-hnsw` feature is enabled:
+
+- O(log n) approximate nearest neighbor search
+- Persistent index on disk
+- Incremental updates
+- Falls back to brute-force when disabled
+
 ## Future Extensions
 
 ### Planned Features
 
-- **Vector Search**: Semantic similarity search via `sqlite-vec`
 - **Streaming**: Process chunks as they're generated
 - **Compression**: Compress stored content
 - **Encryption**: Encrypt sensitive buffers
@@ -442,6 +508,7 @@ proptest! {
 ### Extension Points
 
 - `Chunker` trait for custom chunking strategies
+- `Embedder` trait for alternative embedding models
 - `Storage` trait for alternative backends (PostgreSQL, Redis)
 - Output formatters for additional formats (YAML, TOML)
 

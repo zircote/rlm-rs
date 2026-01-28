@@ -12,7 +12,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rlm-rs = "1.1"
+rlm-rs = "1.2"
 ```
 
 Basic usage:
@@ -159,6 +159,7 @@ pub struct Chunk {
 | `end()` | `usize` | End byte offset |
 | `is_empty()` | `bool` | Check if empty |
 | `estimate_tokens()` | `usize` | Estimate token count (~4 chars/token) |
+| `estimate_tokens_accurate()` | `usize` | Accurate token estimate (word-aware) |
 | `preview(max_len)` | `&str` | Preview first N characters |
 | `overlaps_with(range)` | `bool` | Check if overlaps with range |
 | `contains_offset(offset)` | `bool` | Check if contains byte offset |
@@ -335,6 +336,34 @@ let chunks = chunker.chunk(1, "Your very large text...", None)?;
 
 ---
 
+#### `CodeChunker`
+
+Language-aware chunking at function and class boundaries.
+
+```rust
+use rlm_rs::chunking::{Chunker, CodeChunker, ChunkerMetadata};
+
+let chunker = CodeChunker::new();
+
+// Specify content type for language detection
+let metadata = ChunkerMetadata::new().content_type("rs");
+let chunks = chunker.chunk(1, rust_code, Some(&metadata))?;
+```
+
+**Supported Languages:**
+- Rust (.rs) - `fn`, `impl`, `struct`, `enum`, `mod`
+- Python (.py) - `def`, `class`, `async def`
+- JavaScript/TypeScript (.js, .jsx, .ts, .tsx) - `function`, `class`
+- Go (.go) - `func`, `type`
+- Java (.java) - `class`, `interface`, methods
+- C/C++ (.c, .cpp, .h, .hpp) - functions
+- Ruby (.rb) - `def`, `class`, `module`
+- PHP (.php) - `function`, `class`
+
+**Best for:** Source code files where semantic boundaries matter.
+
+---
+
 ### Factory Functions
 
 ```rust
@@ -342,11 +371,12 @@ use rlm_rs::chunking::{create_chunker, available_strategies};
 
 // Create chunker by name
 let chunker = create_chunker("semantic")?;
+let chunker = create_chunker("code")?;  // Language-aware chunking
 let chunker = create_chunker("fixed")?;
 let chunker = create_chunker("parallel")?;
 
 // List available strategies
-let strategies = available_strategies(); // ["fixed", "semantic", "parallel"]
+let strategies = available_strategies(); // ["fixed", "semantic", "code", "parallel"]
 ```
 
 ---
@@ -469,27 +499,76 @@ pub struct StorageStats {
 
 ---
 
-### Vector Search (Feature-Gated)
+### Embedding and Search
 
-Enable with `vector-search` feature:
+Enable full search capabilities with features:
 
 ```toml
 [dependencies]
-rlm-rs = { version = "1.1", features = ["full-search"] }
+# Default: includes fastembed embeddings
+rlm-rs = "1.2"
+
+# Full search with HNSW index
+rlm-rs = { version = "1.2", features = ["full-search"] }
 ```
 
+#### Generating Embeddings
+
 ```rust
-#[cfg(feature = "vector-search")]
-use rlm_rs::storage::VectorStorage;
+use rlm_rs::search::{embed_buffer_chunks, embed_buffer_chunks_incremental};
+use rlm_rs::embedding::create_embedder;
 
-// Index a chunk with embeddings
-storage.index_chunk(chunk_id, &embedding_vector)?;
+// Create embedder (BGE-M3 or fallback)
+let embedder = create_embedder()?;
 
-// Search for similar chunks
-let results = storage.search_similar(&query_embedding, 10)?;
-for (chunk_id, score) in results {
-    println!("Chunk {}: similarity {}", chunk_id, score);
+// Embed all chunks in a buffer
+let count = embed_buffer_chunks(&mut storage, embedder.as_ref(), buffer_id)?;
+
+// Incremental embedding (only new/changed chunks)
+let result = embed_buffer_chunks_incremental(
+    &mut storage,
+    embedder.as_ref(),
+    buffer_id,
+    false,  // force_reembed
+)?;
+println!("Embedded: {}, Skipped: {}", result.embedded_count, result.skipped_count);
+```
+
+#### Hybrid Search
+
+```rust
+use rlm_rs::search::{hybrid_search, SearchConfig};
+
+let config = SearchConfig {
+    top_k: 10,
+    threshold: 0.3,
+    rrf_k: 60,
+    mode: SearchMode::Hybrid,
+    buffer_id: Some(buffer_id),
+};
+
+let results = hybrid_search(&storage, embedder.as_ref(), "your query", &config)?;
+for result in results {
+    println!("Chunk {}: score {:.4}", result.chunk_id, result.score);
 }
+```
+
+#### HNSW Index (Optional)
+
+When the `usearch-hnsw` feature is enabled:
+
+```rust
+#[cfg(feature = "usearch-hnsw")]
+use rlm_rs::search::{HnswIndex, HnswConfig};
+
+let config = HnswConfig::default();
+let mut index = HnswIndex::new(1024, config)?;  // 1024 dimensions
+
+// Add vectors
+index.add(chunk_id, &embedding)?;
+
+// Search
+let results = index.search(&query_embedding, 10)?;
 ```
 
 ---

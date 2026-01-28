@@ -11,13 +11,17 @@ Based on the RLM pattern from [arXiv:2512.24601](https://arxiv.org/abs/2512.2460
 ## Features
 
 - **Hybrid Semantic Search**: Combined semantic + BM25 search with RRF fusion
-- **Auto-Embedding**: Embeddings generated automatically during load
+- **Auto-Embedding**: Embeddings generated automatically during load (BGE-M3 model)
 - **Pass-by-Reference**: Retrieve chunks by ID for efficient subagent processing
-- **Multiple Chunking Strategies**: Fixed, semantic, and parallel chunking
+- **Multiple Chunking Strategies**: Fixed, semantic, code-aware, and parallel chunking
+- **Code-Aware Chunking**: Language-aware chunking at function/class boundaries
+- **HNSW Vector Index**: Optional scalable approximate nearest neighbor search
+- **Incremental Embedding**: Efficient partial re-embedding for updated content
+- **Agentic Workflow Support**: dispatch/aggregate commands for parallel subagent processing
 - **SQLite State Persistence**: Reliable buffer management across sessions
 - **Regex Search**: Fast content search with context windows
 - **Memory-Mapped I/O**: Efficient handling of large files
-- **JSON Output**: Machine-readable output for integration
+- **JSON/NDJSON Output**: Machine-readable output for integration
 
 ## How It Works
 
@@ -81,6 +85,9 @@ rlm-rs peek docs --start 0 --end 3000
 | `status` | Show current state (buffers, chunks, DB info) |
 | `load` | Load a file into a buffer with chunking (auto-embeds) |
 | `search` | Hybrid semantic + BM25 search across chunks |
+| `update-buffer` | Update buffer content with re-chunking |
+| `dispatch` | Split chunks into batches for parallel subagent processing |
+| `aggregate` | Combine findings from analyst subagents |
 | `chunk get` | Retrieve chunk by ID (pass-by-reference) |
 | `chunk list` | List chunks for a buffer |
 | `chunk embed` | Generate embeddings (or re-embed with --force) |
@@ -101,7 +108,8 @@ rlm-rs peek docs --start 0 --end 3000
 
 | Strategy | Best For | Description |
 |----------|----------|-------------|
-| `semantic` | Markdown, code, JSON | Splits at natural boundaries (headings, paragraphs) |
+| `semantic` | Markdown, prose | Splits at natural boundaries (headings, paragraphs) |
+| `code` | Source code | Language-aware chunking at function/class boundaries |
 | `fixed` | Logs, plain text | Splits at exact byte boundaries |
 | `parallel` | Large files (>10MB) | Multi-threaded fixed chunking |
 
@@ -109,12 +117,19 @@ rlm-rs peek docs --start 0 --end 3000
 # Semantic chunking (default)
 rlm-rs load doc.md --chunker semantic
 
+# Code-aware chunking for source files
+rlm-rs load src/main.rs --chunker code
+
 # Fixed chunking with overlap
 rlm-rs load logs.txt --chunker fixed --chunk-size 150000 --overlap 1000
 
 # Parallel chunking for speed
 rlm-rs load huge.txt --chunker parallel --chunk-size 100000
 ```
+
+### Supported Languages (Code Chunker)
+
+Rust, Python, JavaScript, TypeScript, Go, Java, C/C++, Ruby, PHP
 
 ## Claude Code Integration
 
@@ -182,6 +197,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 - [Architecture](docs/architecture.md) - Internal architecture and design
 - [CLI Reference](docs/cli-reference.md) - Complete command documentation
 - [API Reference](docs/api.md) - Rust library documentation
+- [ADRs](docs/adr/) - Architectural Decision Records
 
 ## Acknowledgments
 

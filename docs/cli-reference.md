@@ -112,7 +112,7 @@ rlm-rs load [OPTIONS] <FILE>
 | Option | Default | Description |
 |--------|---------|-------------|
 | `-n, --name <NAME>` | filename | Custom name for the buffer |
-| `-c, --chunker <STRATEGY>` | `semantic` | Chunking strategy: `fixed`, `semantic`, `parallel` |
+| `-c, --chunker <STRATEGY>` | `semantic` | Chunking strategy: `fixed`, `semantic`, `code`, `parallel` |
 | `--chunk-size <SIZE>` | `3000` | Chunk size in characters (~750 tokens) |
 | `--overlap <SIZE>` | `500` | Overlap between chunks in characters |
 
@@ -120,9 +120,13 @@ rlm-rs load [OPTIONS] <FILE>
 
 | Strategy | Best For | Description |
 |----------|----------|-------------|
-| `semantic` | Markdown, code, prose | Splits at sentence/paragraph boundaries |
+| `semantic` | Markdown, prose | Splits at sentence/paragraph boundaries |
+| `code` | Source code | Language-aware chunking at function/class boundaries |
 | `fixed` | Logs, binary, raw text | Splits at exact character boundaries |
 | `parallel` | Large files (>10MB) | Multi-threaded fixed chunking |
+
+**Code Chunker Supported Languages:**
+Rust, Python, JavaScript, TypeScript, Go, Java, C/C++, Ruby, PHP
 
 **Examples:**
 ```bash
@@ -444,6 +448,8 @@ rlm-rs search [OPTIONS] <QUERY>
 | `-m, --mode <MODE>` | `hybrid` | Search mode: `hybrid`, `semantic`, `bm25` |
 | `--rrf-k <K>` | `60` | RRF k parameter for rank fusion |
 | `-b, --buffer <BUFFER>` | | Filter by buffer ID or name |
+| `-p, --preview` | | Include content preview in results |
+| `--preview-len <N>` | `150` | Preview length in characters |
 
 **Search Modes:**
 
@@ -467,6 +473,9 @@ rlm-rs search "authentication flow" --mode semantic
 # Search specific buffer
 rlm-rs search "error handling" --buffer logs
 
+# Search with content preview
+rlm-rs search "auth" --preview --preview-len 200
+
 # JSON output for programmatic use
 rlm-rs --format json search "your query" --top-k 10
 ```
@@ -485,6 +494,144 @@ rlm-rs --format json search "your query" --top-k 10
 ```
 
 **Extract chunk IDs:** `jq -r '.results[].chunk_id'`
+
+---
+
+### Agentic Workflow Operations
+
+#### `update-buffer`
+
+Update an existing buffer with new content, re-chunking and optionally re-embedding.
+
+```bash
+rlm-rs update-buffer [OPTIONS] <BUFFER> [CONTENT]
+```
+
+**Arguments:**
+| Argument | Description |
+|----------|-------------|
+| `<BUFFER>` | Buffer ID or name |
+| `[CONTENT]` | New content (reads from stdin if omitted) |
+
+**Options:**
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-e, --embed` | | Automatically embed new chunks after update |
+| `--strategy <STRATEGY>` | `semantic` | Chunking strategy |
+| `--chunk-size <SIZE>` | `3000` | Chunk size in characters |
+| `--overlap <SIZE>` | `500` | Overlap between chunks |
+
+**Examples:**
+```bash
+# Update from stdin
+cat updated.txt | rlm-rs update-buffer main-source
+
+# Update with inline content
+rlm-rs update-buffer my-buffer "new content here"
+
+# Update and re-embed
+rlm-rs update-buffer my-buffer --embed
+
+# Update with custom chunking
+cat new_code.rs | rlm-rs update-buffer code-buffer --strategy code
+```
+
+---
+
+#### `dispatch`
+
+Split chunks into batches for parallel subagent processing. Returns batch assignments with chunk IDs for orchestrator use.
+
+```bash
+rlm-rs dispatch [OPTIONS] <BUFFER>
+```
+
+**Arguments:**
+| Argument | Description |
+|----------|-------------|
+| `<BUFFER>` | Buffer ID or name |
+
+**Options:**
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--batch-size <N>` | `10` | Number of chunks per batch |
+| `--workers <N>` | | Number of worker batches (alternative to batch-size) |
+| `-q, --query <QUERY>` | | Filter to chunks matching this search query |
+| `--mode <MODE>` | `hybrid` | Search mode for query filtering |
+| `--threshold <SCORE>` | `0.3` | Minimum similarity threshold for filtering |
+
+**Examples:**
+```bash
+# Dispatch all chunks in batches of 10
+rlm-rs dispatch my-buffer
+
+# Create 4 batches for 4 parallel workers
+rlm-rs dispatch my-buffer --workers 4
+
+# Only dispatch chunks relevant to a query
+rlm-rs dispatch my-buffer --query "error handling"
+
+# JSON output for orchestrator
+rlm-rs --format json dispatch my-buffer
+```
+
+**Output (JSON format):**
+```json
+{
+  "buffer_id": 1,
+  "total_chunks": 42,
+  "batch_count": 5,
+  "batches": [
+    {"batch_id": 0, "chunk_ids": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]},
+    {"batch_id": 1, "chunk_ids": [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]}
+  ]
+}
+```
+
+---
+
+#### `aggregate`
+
+Combine findings from analyst subagents. Reads JSON findings, filters by relevance, groups, and outputs a synthesizer-ready report.
+
+```bash
+rlm-rs aggregate [OPTIONS]
+```
+
+**Options:**
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-b, --buffer <BUFFER>` | | Read findings from a buffer (stdin if omitted) |
+| `--min-relevance <LEVEL>` | `low` | Minimum relevance: `none`, `low`, `medium`, `high` |
+| `--group-by <FIELD>` | `relevance` | Group by: `chunk_id`, `relevance`, `none` |
+| `--sort-by <FIELD>` | `relevance` | Sort by: `relevance`, `chunk_id`, `findings_count` |
+| `-o, --output-buffer <NAME>` | | Store results in a new buffer |
+
+**Input Format (JSON array of analyst findings):**
+```json
+[
+  {"chunk_id": 12, "relevance": "high", "findings": ["Bug found"], "summary": "Critical issue"},
+  {"chunk_id": 27, "relevance": "medium", "findings": ["Minor issue"], "summary": "Needs review"}
+]
+```
+
+**Examples:**
+```bash
+# Aggregate from stdin
+cat findings.json | rlm-rs aggregate
+
+# Read from buffer
+rlm-rs aggregate --buffer analyst-findings
+
+# Filter to high relevance only
+rlm-rs aggregate --min-relevance high
+
+# Store aggregated results
+rlm-rs aggregate --output-buffer synthesis-input
+
+# JSON output
+rlm-rs --format json aggregate
+```
 
 ---
 
@@ -690,9 +837,15 @@ rlm-rs global project_name --delete
 
 ---
 
-## JSON Output Format
+## Output Formats
 
-All commands support `--format json` for machine-readable output:
+All commands support multiple output formats via `--format`:
+
+| Format | Description |
+|--------|-------------|
+| `text` | Human-readable text (default) |
+| `json` | JSON for programmatic use |
+| `ndjson` | Newline-delimited JSON for streaming |
 
 ```bash
 # Status as JSON
@@ -703,6 +856,9 @@ rlm-rs list --format json
 
 # Search results as JSON
 rlm-rs grep document.md "pattern" --format json
+
+# NDJSON for streaming pipelines
+rlm-rs --format ndjson chunk list my-buffer
 ```
 
 ---

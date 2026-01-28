@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Chunking**: Code-aware chunker for language-specific boundaries
+  - Supports Rust, Python, JavaScript, TypeScript, Go, Java, C/C++, Ruby, PHP
+  - Splits at function, class, and method boundaries
+  - Available via `--chunker code` or `--chunker ast`
+- **Search**: HNSW vector index for scalable approximate nearest neighbor search
+  - O(log n) search performance
+  - Optional feature: enable with `usearch-hnsw` feature flag
+- **Search**: Content preview in search results with `--preview` flag
+  - Configurable length with `--preview-len` (default: 150 chars)
+- **CLI**: `update-buffer` command to update buffer content with re-chunking
+  - Supports `--embed` flag for automatic re-embedding
+  - Incremental embedding (only new/changed chunks)
+- **CLI**: `dispatch` command for parallel subagent processing
+  - Split chunks into batches by size or worker count
+  - Filter chunks by search query
+- **CLI**: `aggregate` command to combine analyst findings
+  - Filter by relevance level
+  - Group and sort findings
+  - Store results in output buffer
+- **Embedding**: Incremental embedding support
+  - Only embeds new or changed chunks
+  - Model version tracking for migration detection
+- **Embedding**: Model name tracking in `Embedder` trait
+- **Output**: NDJSON format support (`--format ndjson`)
+- **Documentation**: ADRs for error handling, concurrency model, and feature flags
+- **Documentation**: MCP agentic workflow prompts (analyst, orchestrator, synthesizer)
+
+### Changed
+
+- **Core**: Consolidated UTF-8 and timestamp utilities in io module
+  - `find_char_boundary` and `current_timestamp` now shared across modules
+- **Core**: Improved token estimation with `estimate_tokens_accurate()` method
+- **Error**: Dedicated `Embedding` error variant in `StorageError`
+- **Embedding**: Removed unnecessary unsafe `Send`/`Sync` impls from `FallbackEmbedder`
+
+### Dependencies
+
+- Bump `actions/github-script` from 7 to 8 ([#7])
+- Bump `criterion` from 0.5.1 to 0.8.1 ([#9])
+- Bump `rusqlite` from 0.33.0 to 0.38.0 ([#8])
+- Bump `actions/checkout` from 4 to 6 ([#6])
+- Bump `taiki-e/install-action` in the github-actions group ([#5])
+
 ## [1.2.3] - 2026-01-20
 
 ### Fixed
