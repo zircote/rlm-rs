@@ -215,7 +215,7 @@ impl Chunk {
     /// Estimates token count using a simple heuristic.
     ///
     /// Uses the approximation of ~4 characters per token for ASCII text.
-    /// For a more accurate estimate, use [`estimate_tokens_accurate`].
+    /// For a more accurate estimate, use [`Self::estimate_tokens_accurate`].
     ///
     /// # Accuracy
     ///
@@ -245,7 +245,7 @@ impl Chunk {
     ///
     /// This method iterates over the content string, so it's O(n) where
     /// n is the content length. For very large chunks, the simple
-    /// [`estimate_tokens`] method may be preferred.
+    /// [`Self::estimate_tokens`] method may be preferred.
     #[must_use]
     pub fn estimate_tokens_accurate(&self) -> usize {
         estimate_tokens_for_text(&self.content)
