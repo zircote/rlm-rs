@@ -7,6 +7,7 @@ use crate::chunking::traits::{ChunkMetadata, Chunker};
 use crate::chunking::{DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP, MAX_CHUNK_SIZE};
 use crate::core::Chunk;
 use crate::error::{ChunkingError, Result};
+use crate::io::find_char_boundary;
 use unicode_segmentation::UnicodeSegmentation;
 
 /// Semantic chunker that respects sentence and paragraph boundaries.
@@ -306,21 +307,6 @@ impl Chunker for SemanticChunker {
     fn description(&self) -> &'static str {
         "Semantic chunking respecting sentence and paragraph boundaries"
     }
-}
-
-/// Finds a valid UTF-8 character boundary at or before the given position.
-const fn find_char_boundary(s: &str, pos: usize) -> usize {
-    if pos >= s.len() {
-        return s.len();
-    }
-    let bytes = s.as_bytes();
-    let mut boundary = pos;
-    // UTF-8 continuation bytes start with 10xxxxxx (0x80-0xBF)
-    // We need to find a byte that doesn't start with 10xxxxxx
-    while boundary > 0 && (bytes[boundary] & 0xC0) == 0x80 {
-        boundary -= 1;
-    }
-    boundary
 }
 
 #[cfg(test)]

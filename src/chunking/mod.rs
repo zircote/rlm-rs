@@ -5,13 +5,16 @@
 //!
 //! - **Fixed**: Simple character-based chunking with configurable size and overlap
 //! - **Semantic**: Unicode-aware chunking respecting sentence/paragraph boundaries
+//! - **Code**: Language-aware chunking at function/class boundaries
 //! - **Parallel**: Orchestrator for parallel chunk processing
 
+pub mod code;
 pub mod fixed;
 pub mod parallel;
 pub mod semantic;
 pub mod traits;
 
+pub use code::CodeChunker;
 pub use fixed::FixedChunker;
 pub use parallel::ParallelChunker;
 pub use semantic::SemanticChunker;
@@ -37,7 +40,7 @@ pub const fn default_chunker() -> SemanticChunker {
 ///
 /// # Arguments
 ///
-/// * `name` - Chunker strategy name: "fixed", "semantic", or "parallel".
+/// * `name` - Chunker strategy name: "fixed", "semantic", "code", or "parallel".
 ///
 /// # Returns
 ///
@@ -50,6 +53,7 @@ pub fn create_chunker(name: &str) -> crate::error::Result<Box<dyn Chunker>> {
     match name.to_lowercase().as_str() {
         "fixed" => Ok(Box::new(FixedChunker::new())),
         "semantic" => Ok(Box::new(SemanticChunker::new())),
+        "code" | "ast" => Ok(Box::new(CodeChunker::new())),
         "parallel" => Ok(Box::new(ParallelChunker::new(SemanticChunker::new()))),
         _ => Err(crate::error::ChunkingError::UnknownStrategy {
             name: name.to_string(),
@@ -61,7 +65,7 @@ pub fn create_chunker(name: &str) -> crate::error::Result<Box<dyn Chunker>> {
 /// Lists available chunking strategy names.
 #[must_use]
 pub fn available_strategies() -> Vec<&'static str> {
-    vec!["fixed", "semantic", "parallel"]
+    vec!["fixed", "semantic", "code", "parallel"]
 }
 
 #[cfg(test)]
@@ -108,9 +112,22 @@ mod tests {
     #[test]
     fn test_available_strategies() {
         let strategies = available_strategies();
-        assert_eq!(strategies.len(), 3);
+        assert_eq!(strategies.len(), 4);
         assert!(strategies.contains(&"fixed"));
         assert!(strategies.contains(&"semantic"));
+        assert!(strategies.contains(&"code"));
         assert!(strategies.contains(&"parallel"));
+    }
+
+    #[test]
+    fn test_create_chunker_code() {
+        let chunker = create_chunker("code").unwrap();
+        assert_eq!(chunker.name(), "code");
+    }
+
+    #[test]
+    fn test_create_chunker_ast_alias() {
+        let chunker = create_chunker("ast").unwrap();
+        assert_eq!(chunker.name(), "code");
     }
 }
