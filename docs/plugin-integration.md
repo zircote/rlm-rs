@@ -361,6 +361,145 @@ rlm-rs show auth-analysis
 
 ---
 
+## Error Handling for AI Assistants
+
+When integrating rlm-rs into AI workflows, proper error handling ensures graceful recovery and good user experience. This section provides structured patterns for handling common errors.
+
+### Error Detection
+
+All rlm-rs commands return:
+- **Exit code 0**: Success
+- **Exit code 1**: Error (details in stderr)
+
+With JSON format, errors are structured:
+
+```json
+{
+  "error": "storage error: RLM not initialized. Run: rlm-rs init",
+  "code": "NOT_INITIALIZED"
+}
+```
+
+### Common Errors and Recovery Strategies
+
+| Error Message | Cause | Recovery Strategy |
+|---------------|-------|-------------------|
+| `RLM not initialized` | Database not created | Run `rlm-rs init` |
+| `buffer not found: <name>` | Buffer doesn't exist | Run `rlm-rs list` to verify |
+| `chunk not found: <id>` | Invalid chunk ID | Re-run search to get valid IDs |
+| `No results found` | Query too specific | Broaden query or lower threshold |
+| `embedding error` | Model loading issue | Check disk space, retry once |
+| `file not found` | Invalid path | Verify path exists before load |
+
+### Structured Error Handling Pattern
+
+```bash
+# Robust error handling for AI assistants
+RESULT=$(rlm-rs --format json search "$QUERY" 2>&1)
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -ne 0 ]; then
+    # Parse error
+    ERROR=$(echo "$RESULT" | jq -r '.error // empty')
+
+    case "$ERROR" in
+        *"not initialized"*)
+            rlm-rs init
+            # Retry original command
+            RESULT=$(rlm-rs --format json search "$QUERY")
+            ;;
+        *"buffer not found"*)
+            echo "Buffer not found. Available buffers:"
+            rlm-rs list
+            ;;
+        *"No results"*)
+            echo "No results. Try broader query or: --threshold 0.1"
+            ;;
+        *)
+            echo "Error: $ERROR"
+            ;;
+    esac
+fi
+```
+
+### Retry Logic
+
+For transient errors (embedding model loading, database locks):
+
+```bash
+MAX_RETRIES=3
+RETRY_DELAY=1
+
+for i in $(seq 1 $MAX_RETRIES); do
+    RESULT=$(rlm-rs --format json chunk embed "$BUFFER" 2>&1)
+    if [ $? -eq 0 ]; then
+        break
+    fi
+
+    if [ $i -lt $MAX_RETRIES ]; then
+        sleep $RETRY_DELAY
+        RETRY_DELAY=$((RETRY_DELAY * 2))  # Exponential backoff
+    fi
+done
+```
+
+### Pre-flight Checks
+
+Before complex workflows, verify prerequisites:
+
+```bash
+# Check 1: rlm-rs is installed
+if ! command -v rlm-rs &> /dev/null; then
+    echo "rlm-rs not found. Install with: cargo install rlm-rs"
+    exit 1
+fi
+
+# Check 2: Database is initialized
+if ! rlm-rs status &> /dev/null; then
+    rlm-rs init
+fi
+
+# Check 3: Content is loaded
+BUFFER_COUNT=$(rlm-rs --format json status | jq '.buffer_count')
+if [ "$BUFFER_COUNT" -eq 0 ]; then
+    echo "No content loaded. Use: rlm-rs load <file>"
+    exit 1
+fi
+
+# Check 4: Embeddings exist for semantic search
+EMBED_COUNT=$(rlm-rs --format json chunk status | jq '.embedded_chunks')
+if [ "$EMBED_COUNT" -eq 0 ]; then
+    echo "No embeddings. Generating..."
+    rlm-rs chunk embed --all
+fi
+```
+
+### Graceful Degradation
+
+When semantic search fails, fall back to BM25:
+
+```bash
+# Try semantic first
+RESULT=$(rlm-rs --format json search "$QUERY" --mode semantic 2>&1)
+
+if echo "$RESULT" | jq -e '.error' > /dev/null 2>&1; then
+    # Fall back to BM25 (keyword search, no embeddings required)
+    RESULT=$(rlm-rs --format json search "$QUERY" --mode bm25)
+fi
+```
+
+### Error Messages for Users
+
+When reporting errors to users, provide actionable guidance:
+
+```markdown
+**Good**: "Buffer 'config' not found. Available buffers: main, auth. Did you mean one of these?"
+
+**Bad**: "Error: buffer not found: config"
+```
+
+---
+
 ## Troubleshooting
 
 ### Command Not Found
@@ -398,8 +537,48 @@ rlm-rs search "query" --format json  # Also correct
 
 ---
 
+## System Prompt Templates
+
+Ready-to-use system prompts for AI assistants integrating with rlm-rs are available in the `prompts/` directory:
+
+| Template | Purpose | Recommended Model |
+|----------|---------|-------------------|
+| [rlm-orchestrator.md](prompts/rlm-orchestrator.md) | Coordinates search, dispatch, and synthesis | sonnet |
+| [rlm-analyst.md](prompts/rlm-analyst.md) | Analyzes individual chunks | haiku |
+| [rlm-synthesizer.md](prompts/rlm-synthesizer.md) | Aggregates analyst findings | sonnet |
+
+### Quick Start
+
+1. **Orchestrator** receives user request and searches for relevant chunks
+2. **Analysts** (parallel) process individual chunks and return structured findings
+3. **Synthesizer** aggregates findings into a coherent report
+
+```
+User Request
+     │
+     ▼
+┌─────────────┐
+│ Orchestrator │──▶ rlm-rs search "query"
+└─────────────┘
+     │
+     ▼ dispatch
+┌─────────────────────────────────┐
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐  │
+│  │Analyst 1│ │Analyst 2│ │Analyst N│  │  (parallel)
+│  └─────────┘ └─────────┘ └─────────┘  │
+└─────────────────────────────────┘
+     │ collect
+     ▼
+┌─────────────┐
+│ Synthesizer │──▶ Final Report
+└─────────────┘
+```
+
+---
+
 ## See Also
 
 - [RLM-Inspired Design](rlm-inspired-design.md) - Architectural philosophy
 - [CLI Reference](cli-reference.md) - Complete command documentation
 - [Architecture](architecture.md) - Internal implementation details
+- [Prompt Templates](prompts/) - System prompts for AI integration
