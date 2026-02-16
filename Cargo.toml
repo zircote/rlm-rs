@@ -59,7 +59,7 @@ usearch = { version = "2.23", git = "https://github.com/madmax983/USearch.git", 
 # Testing
 proptest = "1.10.0"
 test-case = "3.3.1"
-tempfile = "3.13"
+tempfile = "3.25"
 assert_cmd = "2.0"
 predicates = "3.1"
 
