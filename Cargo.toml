@@ -38,7 +38,7 @@ serde_json = "1.0"
 
 # Text processing
 unicode-segmentation = "1.12"
-regex = "1.11"
+regex = "1.12"
 
 # I/O
 memmap2 = "0.9"
