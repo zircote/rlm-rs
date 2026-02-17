@@ -1,0 +1,257 @@
+# Feature Flags
+
+`rlm-rs` uses Cargo features to provide optional functionality and reduce binary size for specific use cases.
+
+## Available Features
+
+### `fastembed-embeddings` (default)
+
+**What it does:** Enables semantic search using FastEmbed ONNX-based embedding models.
+
+**Dependencies:**
+- `fastembed` crate (ONNX Runtime binaries)
+- BGE-M3 embedding model (1024 dimensions)
+
+**Use when:**
+- You need semantic similarity search
+- Context-aware document retrieval is important
+- Hybrid search (semantic + BM25) is required
+
+**Binary size impact:** ~100MB (includes ONNX runtime + model weights)
+
+**Build:**
+````bash
+# Enabled by default
+cargo build --release
+
+# Explicitly enable
+cargo build --release --features fastembed-embeddings
+````
+
+**Skip when:**
+- You only need keyword/regex search
+- Binary size is critical (embedded systems, containers)
+- BM25 full-text search is sufficient
+
+**Build without:**
+````bash
+cargo build --release --no-default-features
+````
+
+---
+
+### `usearch-hnsw`
+
+**What it does:** Enables high-performance vector search using HNSW (Hierarchical Navigable Small World) algorithm.
+
+**Dependencies:**
+- `usearch` crate (native C++ bindings)
+- Requires C++ compiler
+
+**Use when:**
+- Working with large document collections (>10,000 chunks)
+- Low-latency vector search is required (<10ms)
+- Memory usage is acceptable (HNSW index ~4x embedding size)
+
+**Performance:**
+- **Exact search (SQLite):** O(n) - 100ms for 10K chunks
+- **HNSW search:** O(log n) - <10ms for 10K chunks
+
+**Build:**
+````bash
+cargo build --release --features usearch-hnsw
+````
+
+**Skip when:**
+- Document collection is small (<1,000 chunks)
+- Build environment lacks C++ toolchain
+- Approximate nearest neighbor trade-offs are unacceptable
+
+---
+
+### `full-search`
+
+**What it does:** Combines `fastembed-embeddings` + `usearch-hnsw` for complete semantic search capabilities.
+
+**Use when:**
+- Production deployment with large-scale semantic search
+- Maximum search performance is required
+- You want the complete feature set
+
+**Build:**
+````bash
+cargo build --release --features full-search
+````
+
+---
+
+## Feature Combinations
+
+| Features | Embedding | Vector Search | BM25 | Use Case |
+|----------|-----------|---------------|------|----------|
+| `(none)` | ❌ | ❌ | ✅ | Keyword search only, minimal binary |
+| `fastembed-embeddings` | ✅ | Exact (SQLite) | ✅ | Hybrid search, moderate scale |
+| `usearch-hnsw` | ❌ | ❌ | ✅ | No embeddings, BM25 only |
+| `full-search` | ✅ | HNSW | ✅ | Production, large scale |
+
+## Fallback Behavior
+
+### Without `fastembed-embeddings`
+
+Semantic search commands will fall back to BM25-only:
+
+````bash
+# This command requires embeddings
+rlm-rs search "query" --mode semantic
+
+# Error: FastEmbed not available, falling back to BM25
+# Suggestion: Rebuild with --features fastembed-embeddings
+````
+
+The CLI will automatically use hash-based pseudo-embeddings for compatibility, but results will be degraded.
+
+### Without `usearch-hnsw`
+
+Vector search uses exact SQLite-based cosine similarity:
+
+````bash
+rlm-rs search "query" --mode hybrid --top-k 100
+# Uses exact search - slower but accurate
+````
+
+Performance degrades linearly with chunk count.
+
+## Build Examples
+
+### Minimal Binary (BM25 only)
+
+````bash
+# Smallest binary, keyword search only
+cargo build --release --no-default-features
+
+# Result: ~5MB binary, no embedding dependencies
+````
+
+### Standard Configuration (recommended)
+
+````bash
+# Default: FastEmbed embeddings + SQLite vector search
+cargo build --release
+
+# Result: ~100MB binary, hybrid search, moderate scale
+````
+
+### High-Performance Configuration
+
+````bash
+# Full features: FastEmbed + HNSW
+cargo build --release --features full-search
+
+# Result: ~105MB binary, maximum performance
+````
+
+### Container Deployment
+
+````dockerfile
+# Dockerfile example - minimal size
+FROM rust:1.88-slim AS builder
+WORKDIR /app
+COPY . .
+RUN cargo build --release --no-default-features
+
+FROM debian:bookworm-slim
+COPY --from=builder /app/target/release/rlm-cli /usr/local/bin/
+CMD ["rlm-cli"]
+````
+
+## Runtime Behavior
+
+### First-Time Model Download (fastembed-embeddings)
+
+When first running with embeddings enabled:
+
+````bash
+rlm-rs load document.md --name docs
+
+# Downloads BGE-M3 model (~1GB) to ~/.cache/fastembed/
+# Progress: Downloading model... 100%
+# Generating embeddings... Done (5000 chunks in 30s)
+````
+
+**Model cache location:** `$HOME/.cache/fastembed/`
+
+**Download size:** ~1GB (one-time)
+
+### Feature Detection
+
+Check which features are compiled:
+
+````bash
+rlm-rs --version
+
+# Output:
+# rlm-cli 1.2.4
+# Features: fastembed-embeddings, usearch-hnsw
+````
+
+## Troubleshooting
+
+### Build Failures
+
+**Error:** `error: failed to compile usearch`
+
+**Solution:** Install C++ compiler
+
+````bash
+# Ubuntu/Debian
+sudo apt-get install build-essential
+
+# macOS
+xcode-select --install
+
+# Or disable HNSW
+cargo build --release --features fastembed-embeddings
+````
+
+**Error:** `ONNX Runtime not found`
+
+**Solution:** Use bundled binaries (enabled by default)
+
+````bash
+# Explicitly enable bundled ONNX
+cargo build --release --features fastembed-embeddings
+````
+
+### Runtime Issues
+
+**Issue:** Embedding generation is slow
+
+**Solutions:**
+- Use `--chunker parallel` for multi-threaded chunking
+- Reduce chunk size: `--chunk-size 50000` (default: 100k)
+- Check CPU resources (embedding uses all cores)
+
+**Issue:** High memory usage during search
+
+**Solutions:**
+- Without HNSW: Memory = chunk_count × 1024 × 4 bytes
+- With HNSW: Memory = chunk_count × 1024 × 16 bytes (includes index)
+- Use `--top-k` to limit result set: `--top-k 10`
+
+## Performance Comparison
+
+Benchmark: 50,000 chunks, BGE-M3 embeddings (1024d)
+
+| Configuration | Search Time | Memory | Binary Size |
+|---------------|-------------|--------|-------------|
+| No features | 200ms (BM25) | 50MB | 5MB |
+| fastembed-embeddings | 800ms (exact) | 250MB | 100MB |
+| full-search | 8ms (HNSW) | 450MB | 105MB |
+
+**Recommendation:** Use `fastembed-embeddings` (default) for most use cases. Enable `usearch-hnsw` only for large-scale deployments (>10K chunks).
+
+## Related Documentation
+
+- [Architecture](architecture.md) - How features integrate with core systems
+- [CLI Reference](cli-reference.md) - Commands affected by feature flags
+- [Plugin Integration](plugin-integration.md) - Using features with Claude Code

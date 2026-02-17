@@ -192,12 +192,20 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Documentation
 
-- [RLM-Inspired Design](docs/rlm-inspired-design.md) - How rlm-rs builds on the RLM paper
-- [Plugin Integration](docs/plugin-integration.md) - Integration with Claude Code, Copilot, Codex, and more
-- [Architecture](docs/architecture.md) - Internal architecture and design
-- [CLI Reference](docs/cli-reference.md) - Complete command documentation
-- [API Reference](docs/api.md) - Rust library documentation
-- [ADRs](docs/adr/) - Architectural Decision Records
+### Getting Started
+- **[Examples](docs/examples.md)** - Practical examples and workflows
+- **[CLI Reference](docs/cli-reference.md)** - Complete command documentation
+- **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
+
+### Configuration
+- **[Features Guide](docs/features.md)** - Feature flags and build options
+- **[Plugin Integration](docs/plugin-integration.md)** - Integration with Claude Code and other tools
+
+### Design & Architecture
+- **[RLM-Inspired Design](docs/rlm-inspired-design.md)** - How rlm-rs builds on the RLM paper
+- **[Architecture](docs/architecture.md)** - Internal architecture and design
+- **[API Reference](docs/api.md)** - Rust library documentation
+- **[ADRs](docs/adr/)** - Architectural Decision Records
 
 ## Acknowledgments
 
