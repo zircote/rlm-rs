@@ -192,18 +192,23 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Documentation
 
-### Getting Started
+📚 **[Complete Documentation](docs/README.md)** - Full documentation hub with tutorials, guides, and reference materials
+
+### Quick Links
+
+- **[Getting Started](docs/getting-started.md)** - 5-minute tutorial for new users
 - **[Examples](docs/examples.md)** - Practical examples and workflows
 - **[CLI Reference](docs/cli-reference.md)** - Complete command documentation
+- **[FAQ](docs/faq.md)** - Frequently asked questions
 - **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
+- **[Glossary](docs/glossary.md)** - RLM and chunking terminology
 
-### Configuration
+### Advanced Topics
+
 - **[Features Guide](docs/features.md)** - Feature flags and build options
-- **[Plugin Integration](docs/plugin-integration.md)** - Integration with Claude Code and other tools
-
-### Design & Architecture
-- **[RLM-Inspired Design](docs/rlm-inspired-design.md)** - How rlm-rs builds on the RLM paper
-- **[Architecture](docs/architecture.md)** - Internal architecture and design
+- **[Plugin Integration](docs/plugin-integration.md)** - Integration with Claude Code
+- **[Architecture](docs/architecture.md)** - Internal design and architecture
+- **[RLM-Inspired Design](docs/rlm-inspired-design.md)** - Connection to RLM paper
 - **[API Reference](docs/api.md)** - Rust library documentation
 - **[ADRs](docs/adr/)** - Architectural Decision Records
 
