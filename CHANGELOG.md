@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Documentation**: Enhanced troubleshooting guide with usearch version pinning details
+  - Documented the `<2.24` version constraint and Windows compatibility
+  - Added troubleshooting section for usearch version issues
+  - Updated features guide to reference usearch v2.23.x requirement
+
 ## [1.2.4] - 2026-02-08
 
 ### Added

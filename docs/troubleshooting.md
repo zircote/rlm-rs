@@ -119,6 +119,49 @@ g++ --version  # Should be 7.0+
 clang++ --version  # Should be 5.0+
 ````
 
+### usearch Version Issues
+
+**Background:**
+
+rlm-rs uses usearch 2.23.0 from crates.io, pinned to `<2.24` to avoid compilation issues on Windows.
+
+**Why version 2.24+ is excluded:**
+
+usearch v2.24.0 introduced a `MAP_FAILED` constant that is POSIX-only and breaks Windows compilation. See [unum-cloud/USearch#715](https://github.com/unum-cloud/USearch/issues/715).
+
+**If you encounter version-related errors:**
+
+1. **Verify Cargo.lock uses 2.23.x:**
+
+````bash
+grep -A2 'name = "usearch"' Cargo.lock
+````
+
+Expected output should show version `2.23.x`.
+
+2. **Clear cache and rebuild:**
+
+````bash
+cargo clean
+rm -rf ~/.cargo/registry/cache/
+cargo build --release --features usearch-hnsw
+````
+
+3. **Check for git dependencies:**
+
+Ensure `Cargo.toml` references the official crates.io version, not a git fork:
+
+````toml
+usearch = { version = ">=2.23, <2.24", optional = true }
+````
+
+**Not** a git dependency like:
+
+````toml
+# INCORRECT - do not use git forks
+usearch = { git = "https://github.com/...", branch = "..." }
+````
+
 ### Clippy Warnings Blocking Build
 
 **Symptom:**
