@@ -1,0 +1,40 @@
+---
+title: "Error Handling"
+description: "Error type design, Result alias, and propagation conventions."
+---
+
+Always use `Result` types for fallible operations. Never panic in library code:
+
+```rust
+// Good - Returns Result
+pub fn parse(input: &str) -> Result<Value, ParseError> {
+    if input.is_empty() {
+        return Err(ParseError::EmptyInput);
+    }
+    // parsing logic
+    Ok(value)
+}
+
+// Bad - Panics
+pub fn parse(input: &str) -> Value {
+    input.parse().unwrap() // Never do this in library code
+}
+```
+
+Use `thiserror` for custom error types:
+
+```rust
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("invalid input: {0}")]
+    InvalidInput(String),
+
+    #[error("operation failed")]
+    OperationFailed {
+        #[source]
+        source: std::io::Error,
+    },
+}
+```

@@ -1,0 +1,36 @@
+---
+title: "Documentation"
+description: "Documentation comment structure and requirements."
+---
+
+All public items must have documentation with examples:
+
+```rust
+/// Processes the input data according to the configuration.
+///
+/// # Arguments
+///
+/// * `input` - The data to process.
+/// * `config` - Processing configuration.
+///
+/// # Returns
+///
+/// The processed result.
+///
+/// # Errors
+///
+/// Returns [`Error::InvalidInput`] if the input is malformed.
+///
+/// # Examples
+///
+/// ```rust
+/// use {{crate_name}}::{process, Config};
+///
+/// let result = process("data", &Config::default())?;
+/// assert!(!result.is_empty());
+/// # Ok::<(), {{crate_name}}::Error>(())
+/// ```
+pub fn process(input: &str, config: &Config) -> Result<Output, Error> {
+    // implementation
+}
+```

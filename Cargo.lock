@@ -104,9 +104,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.101"
+version = "1.0.102"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f0e0fee31ef5ed1ba1316088939cea399010ed7731dba877ed44aeb407a75ea"
+checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
 name = "assert_cmd"
@@ -2693,7 +2693,8 @@ dependencies = [
 [[package]]
 name = "usearch"
 version = "2.23.0"
-source = "git+https://github.com/madmax983/USearch.git?branch=fix%2Frust-move-semantics#ca8a0213cc56f43354b35ffc83e12f033993fd4a"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a03c05af8d678ec19f014c734ab667c20ea54128b4f9a1472cb470246a9b341"
 dependencies = [
  "cxx",
  "cxx-build",
