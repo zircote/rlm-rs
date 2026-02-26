@@ -212,6 +212,17 @@ impl HnswIndex {
         let key = self.next_key;
         self.next_key += 1;
 
+        // Ensure the index has capacity for the new vector.
+        // usearch requires `reserve` before `add`.
+        let needed = self.inner.size() + 1;
+        if needed > self.inner.capacity() {
+            self.inner
+                .reserve(needed.max(16))
+                .map_err(|e| SearchError::IndexError {
+                    message: format!("Failed to reserve index capacity: {e}"),
+                })?;
+        }
+
         self.inner
             .add(key, vector)
             .map_err(|e| SearchError::IndexError {

@@ -24,7 +24,7 @@ path = "src/main.rs"
 [dependencies]
 # Core dependencies
 thiserror = "2.0.17"
-anyhow = "1.0.101"
+anyhow = "1.0.102"
 
 # CLI
 clap = { version = "4.5", features = ["derive", "cargo", "env"] }
@@ -51,9 +51,9 @@ rayon = "1.10"
 fastembed = { version = "5", optional = true, default-features = false, features = ["ort-download-binaries", "hf-hub-rustls-tls"] }
 
 # usearch HNSW vector search (optional - BM25-only fallback if not available)
-# Using git branch with move semantics fix until PR #704 is merged
-# See: https://github.com/unum-cloud/usearch/pull/704
-usearch = { version = "2.23", git = "https://github.com/madmax983/USearch.git", branch = "fix/rust-move-semantics", optional = true }
+# Pinned to <2.24: v2.24.0 has a MAP_FAILED POSIX constant that breaks Windows compilation
+# See: https://github.com/unum-cloud/USearch/issues/715
+usearch = { version = ">=2.23, <2.24", optional = true }
 
 [dev-dependencies]
 # Testing
