@@ -1,0 +1,34 @@
+---
+title: rlm-rs
+description: Recursive Language Model (RLM) REPL for Claude Code - handles long-context tasks via chunking and recursive sub-LLM calls.
+template: splash
+hero:
+  title: rlm-rs
+  tagline: Recursive Language Model REPL for Claude Code — long-context tasks via chunking and recursive sub-LLM calls
+  actions:
+    - text: Get Started
+      link: /rlm-rs/getting-started/features/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/zircote/rlm-rs
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<CardGrid>
+  <Card title="Recursive Chunking" icon="rocket">
+    Break large files into manageable chunks and process them recursively with sub-LLM calls for comprehensive analysis.
+  </Card>
+  <Card title="Hybrid Search" icon="magnifier">
+    Combines BM25 text search with vector similarity using Reciprocal Rank Fusion for precise context retrieval.
+  </Card>
+  <Card title="Embedded Embeddings" icon="puzzle">
+    Ships with BGE-M3 model via fastembed — no external API calls needed for vector operations.
+  </Card>
+  <Card title="Claude Code Plugin" icon="setting">
+    Integrates as a Claude Code skill for seamless use within your existing AI-assisted development workflow.
+  </Card>
+</CardGrid>

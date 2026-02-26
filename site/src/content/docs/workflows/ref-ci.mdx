@@ -1,0 +1,30 @@
+---
+title: "CI"
+description: "Reference for the CI GitHub Actions workflow."
+sidebar:
+  badge:
+    text: "CI"
+    variant: "success"
+---
+
+**Source:** [`.github/workflows/ci.yml`](https://github.com/zircote/rlm-rs/blob/main/.github/workflows/ci.yml)
+
+## Triggers
+
+| Event |
+|---|
+| `push` |
+| `pull_request` |
+| `workflow_dispatch` |
+
+## Jobs
+
+- `fmt`
+- `clippy`
+- `test`
+- `doc`
+- `deny`
+- `msrv`
+- `coverage`
+- `all-checks-pass`
+

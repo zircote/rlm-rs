@@ -55,10 +55,7 @@ external-default-features = "allow"
 deny = []
 
 # Skip checking transitive deps we can't control
-skip = [
-    # openssl pulled in by fastembed transitive deps (native-tls fallback)
-    { crate = "openssl", reason = "Transitive dep from fastembed we can't control" },
-]
+skip = []
 
 #==============================================================================
 # Sources - Allowed crate sources

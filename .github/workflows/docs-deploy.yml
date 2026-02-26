@@ -1,0 +1,99 @@
+---
+name: Deploy Documentation
+
+"on":
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'site/**'
+      - 'CLAUDE.md'
+      - 'Cargo.toml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-docs:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        # yamllint disable-line rule:line-length
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Setup Rust
+        # yamllint disable-line rule:line-length
+        uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9  # master
+        with:
+          toolchain: stable
+
+      - name: Build rustdoc
+        run: cargo doc --no-deps --all-features
+
+      - name: Setup Node.js
+        # yamllint disable-line rule:line-length
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with:
+          node-version: '22'
+
+      - name: Install site dependencies
+        working-directory: site
+        run: npm ci || npm install
+
+      - name: Use social preview as OG image
+        run: |
+          if [ -f .github/social-preview.svg ]; then
+            cp .github/social-preview.svg site/public/og-image.svg
+            echo "Copied .github/social-preview.svg to site/public/og-image.svg"
+          fi
+
+      - name: Generate content
+        working-directory: site
+        run: npm run generate
+
+      - name: Build Astro site
+        working-directory: site
+        run: |
+          npx astro build \
+            --site https://zircote.github.io/rlm-rs
+
+      - name: Embed rustdoc
+        run: |
+          mkdir -p site/dist/api
+          cp -r target/doc/* site/dist/api/
+          REDIR='<meta http-equiv="refresh"'
+          REDIR="$REDIR"' content="0; url=rlm_rs">'
+          echo "$REDIR" > site/dist/api/index.html
+
+      - name: Setup Pages
+        # yamllint disable-line rule:line-length
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b  # v5.0.0
+
+      - name: Upload artifact
+        # yamllint disable-line rule:line-length
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa  # v3.0.1
+        with:
+          path: site/dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build-docs
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        # yamllint disable-line rule:line-length
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e  # v4.0.5

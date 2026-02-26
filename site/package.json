@@ -1,0 +1,21 @@
+{
+  "name": "rlm-rs-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "npm run generate && astro build && npm run postbuild",
+    "preview": "astro preview",
+    "generate": "node scripts/generate-all.mjs",
+    "generate:docs": "node scripts/generate-docs-pages.mjs",
+    "generate:workflows": "node scripts/generate-workflow-pages.mjs",
+    "generate:reference": "node scripts/generate-reference-pages.mjs",
+    "check:freshness": "node scripts/check-freshness.mjs",
+    "postbuild": "node scripts/embed-rustdoc.mjs"
+  },
+  "dependencies": {
+    "astro": "^5.17.2",
+    "@astrojs/starlight": "^0.37.6",
+    "astro-mermaid": "^1.3.1"
+  }
+}
