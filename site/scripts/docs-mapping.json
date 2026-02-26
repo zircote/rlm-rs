@@ -1,0 +1,180 @@
+{
+  "outputDir": "src/content/docs",
+  "pages": [
+    {
+      "source": "docs/features.md",
+      "output": "getting-started/features.mdx",
+      "title": "Features",
+      "description": "Key features of the rlm-rs Recursive Language Model CLI.",
+      "sidebarLabel": "Features"
+    },
+    {
+      "source": "docs/cli-reference.md",
+      "output": "getting-started/cli-reference.mdx",
+      "title": "CLI Reference",
+      "description": "Command-line interface reference for rlm-cli.",
+      "sidebarLabel": "CLI Reference"
+    },
+    {
+      "source": "docs/examples.md",
+      "output": "getting-started/examples.mdx",
+      "title": "Examples",
+      "description": "Usage examples for rlm-rs.",
+      "sidebarLabel": "Examples"
+    },
+    {
+      "source": "docs/architecture.md",
+      "output": "architecture/architecture.mdx",
+      "title": "System Architecture",
+      "description": "Architecture overview of the rlm-rs system.",
+      "sidebarLabel": "System Architecture"
+    },
+    {
+      "source": "docs/rlm-inspired-design.md",
+      "output": "architecture/rlm-inspired-design.mdx",
+      "title": "RLM-Inspired Design",
+      "description": "Design philosophy behind the Recursive Language Model pattern.",
+      "sidebarLabel": "RLM Design"
+    },
+    {
+      "source": "docs/streaming-plan.md",
+      "output": "architecture/streaming-plan.mdx",
+      "title": "Streaming Plan",
+      "description": "Streaming architecture and implementation plan.",
+      "sidebarLabel": "Streaming Plan"
+    },
+    {
+      "source": "docs/api.md",
+      "output": "reference/api.mdx",
+      "title": "API Documentation",
+      "description": "Library API reference for rlm_rs.",
+      "sidebarLabel": "API Documentation"
+    },
+    {
+      "source": "docs/plugin-integration.md",
+      "output": "reference/plugin-integration.mdx",
+      "title": "Plugin Integration",
+      "description": "Integrating rlm-rs as a Claude Code plugin.",
+      "sidebarLabel": "Plugin Integration"
+    },
+    {
+      "source": "docs/prompts/rlm-analyst.md",
+      "output": "prompts/rlm-analyst.mdx",
+      "title": "RLM Analyst Prompt",
+      "description": "System prompt for the RLM chunk analyst agent.",
+      "sidebarLabel": "RLM Analyst"
+    },
+    {
+      "source": "docs/prompts/rlm-orchestrator.md",
+      "output": "prompts/rlm-orchestrator.mdx",
+      "title": "RLM Orchestrator Prompt",
+      "description": "System prompt for the RLM orchestrator agent.",
+      "sidebarLabel": "RLM Orchestrator"
+    },
+    {
+      "source": "docs/prompts/rlm-synthesizer.md",
+      "output": "prompts/rlm-synthesizer.mdx",
+      "title": "RLM Synthesizer Prompt",
+      "description": "System prompt for the RLM result synthesizer agent.",
+      "sidebarLabel": "RLM Synthesizer"
+    },
+    {
+      "source": "docs/troubleshooting.md",
+      "output": "troubleshooting/troubleshooting.mdx",
+      "title": "Troubleshooting",
+      "description": "Common issues and solutions for rlm-rs.",
+      "sidebarLabel": "Troubleshooting"
+    },
+    {
+      "source": "docs/adr/001-adopt-recursive-language-model-pattern.md",
+      "output": "design-decisions/adr-001.mdx",
+      "title": "ADR-001: Adopt Recursive Language Model Pattern",
+      "description": "Decision to adopt the RLM pattern for long-context processing.",
+      "sidebarLabel": "ADR-001: RLM Pattern"
+    },
+    {
+      "source": "docs/adr/002-use-rust-as-implementation-language.md",
+      "output": "design-decisions/adr-002.mdx",
+      "title": "ADR-002: Use Rust as Implementation Language",
+      "description": "Decision to use Rust for the rlm-rs implementation.",
+      "sidebarLabel": "ADR-002: Rust Language"
+    },
+    {
+      "source": "docs/adr/003-sqlite-for-state-persistence.md",
+      "output": "design-decisions/adr-003.mdx",
+      "title": "ADR-003: SQLite for State Persistence",
+      "description": "Decision to use SQLite for persistent state storage.",
+      "sidebarLabel": "ADR-003: SQLite Persistence"
+    },
+    {
+      "source": "docs/adr/004-multiple-chunking-strategies.md",
+      "output": "design-decisions/adr-004.mdx",
+      "title": "ADR-004: Multiple Chunking Strategies",
+      "description": "Decision to support multiple chunking strategies.",
+      "sidebarLabel": "ADR-004: Chunking Strategies"
+    },
+    {
+      "source": "docs/adr/005-cli-first-interface-design.md",
+      "output": "design-decisions/adr-005.mdx",
+      "title": "ADR-005: CLI-First Interface Design",
+      "description": "Decision to prioritize CLI as the primary interface.",
+      "sidebarLabel": "ADR-005: CLI-First Design"
+    },
+    {
+      "source": "docs/adr/006-pass-by-reference-architecture.md",
+      "output": "design-decisions/adr-006.mdx",
+      "title": "ADR-006: Pass-by-Reference Architecture",
+      "description": "Decision to use pass-by-reference for data flow.",
+      "sidebarLabel": "ADR-006: Pass-by-Reference"
+    },
+    {
+      "source": "docs/adr/007-embedded-embedding-model.md",
+      "output": "design-decisions/adr-007.mdx",
+      "title": "ADR-007: Embedded Embedding Model",
+      "description": "Decision to embed the embedding model rather than use external APIs.",
+      "sidebarLabel": "ADR-007: Embedded Embeddings"
+    },
+    {
+      "source": "docs/adr/008-hybrid-search-with-rrf.md",
+      "output": "design-decisions/adr-008.mdx",
+      "title": "ADR-008: Hybrid Search with RRF",
+      "description": "Decision to combine BM25 and vector search via Reciprocal Rank Fusion.",
+      "sidebarLabel": "ADR-008: Hybrid Search RRF"
+    },
+    {
+      "source": "docs/adr/009-reduced-default-chunk-size.md",
+      "output": "design-decisions/adr-009.mdx",
+      "title": "ADR-009: Reduced Default Chunk Size",
+      "description": "Decision to reduce default chunk size for better granularity.",
+      "sidebarLabel": "ADR-009: Reduced Chunk Size"
+    },
+    {
+      "source": "docs/adr/010-switch-to-bge-m3-model.md",
+      "output": "design-decisions/adr-010.mdx",
+      "title": "ADR-010: Switch to BGE-M3 Model",
+      "description": "Decision to switch embedding model to BGE-M3.",
+      "sidebarLabel": "ADR-010: BGE-M3 Model"
+    },
+    {
+      "source": "docs/adr/011-error-handling-with-thiserror.md",
+      "output": "design-decisions/adr-011.mdx",
+      "title": "ADR-011: Error Handling with thiserror",
+      "description": "Decision to use thiserror for error type definitions.",
+      "sidebarLabel": "ADR-011: Error Handling"
+    },
+    {
+      "source": "docs/adr/012-concurrency-model-with-rayon.md",
+      "output": "design-decisions/adr-012.mdx",
+      "title": "ADR-012: Concurrency Model with Rayon",
+      "description": "Decision to use Rayon for data-parallel concurrency.",
+      "sidebarLabel": "ADR-012: Concurrency Rayon"
+    },
+    {
+      "source": "docs/adr/013-feature-flag-architecture.md",
+      "output": "design-decisions/adr-013.mdx",
+      "title": "ADR-013: Feature Flag Architecture",
+      "description": "Decision on feature flag architecture for optional functionality.",
+      "sidebarLabel": "ADR-013: Feature Flags"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+---
+title: "Ownership and Borrowing"
+description: "Guidelines for ownership, borrowing, and parameter types."
+---
+
+Prefer borrowing over ownership:
+
+```rust
+// Good - borrows
+pub fn process(data: &[u8]) -> Vec<u8> { ... }
+
+// Avoid - takes ownership unnecessarily
+pub fn process(data: Vec<u8>) -> Vec<u8> { ... }
+```
+
+Use `Cow` for flexible string handling:
+
+```rust
+use std::borrow::Cow;
+
+pub fn normalize(s: &str) -> Cow<'_, str> {
+    if s.contains(' ') {
+        Cow::Owned(s.replace(' ', "_"))
+    } else {
+        Cow::Borrowed(s)
+    }
+}
+```
