@@ -414,21 +414,40 @@ impl Chunker for ParallelChunker {
 collection grows:
 
 ```rust
-fn semantic_search(storage: &SqliteStorage, embedder: &dyn Embedder, query: &str, config: &SearchConfig) -> Result<Vec<(i64, f32)>> {
+fn semantic_search(
+    storage: &SqliteStorage,
+    embedder: &dyn Embedder,
+    query: &str,
+    config: &SearchConfig,
+) -> Result<Vec<(i64, f32)>> {
     use rayon::prelude::*;
 
+    // Generate query embedding
     let query_embedding = embedder.embed(query)?;
+
+    // Get all embeddings from storage
     let all_embeddings = storage.get_all_embeddings()?;
 
-    // Parallel cosine-similarity computation across all stored embeddings
+    if all_embeddings.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    // Calculate similarities in parallel (rayon data parallelism)
     let mut similarities: Vec<(i64, f32)> = all_embeddings
         .par_iter()
-        .map(|(chunk_id, embedding)| (*chunk_id, cosine_similarity(&query_embedding, embedding)))
+        .map(|(chunk_id, embedding)| {
+            let sim = cosine_similarity(&query_embedding, embedding);
+            (*chunk_id, sim)
+        })
         .filter(|(_, sim)| *sim >= config.similarity_threshold)
         .collect();
 
+    // Sort by similarity descending
     similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+    // Limit results
     similarities.truncate(config.top_k * 2);
+
     Ok(similarities)
 }
 ```
@@ -436,13 +455,22 @@ fn semantic_search(storage: &SqliteStorage, embedder: &dyn Embedder, query: &str
 ### Pre-Sized Embedding Buffers
 
 `store_embedding()` and `store_embeddings_batch()` pre-allocate the serialization buffer before
-converting `f32` values to little-endian bytes, avoiding 2–3 heap reallocations per embedding:
+converting `f32` values to little-endian bytes, avoiding repeated heap reallocations per embedding:
+
+`store_embedding()` uses an explicit loop:
 
 ```rust
 let mut bytes = Vec::with_capacity(embedding.len() * 4);
 for f in embedding {
     bytes.extend_from_slice(&f.to_le_bytes());
 }
+```
+
+`store_embeddings_batch()` uses iterator chaining:
+
+```rust
+let mut bytes = Vec::with_capacity(embedding.len() * 4);
+bytes.extend(embedding.iter().flat_map(|f| f.to_le_bytes()));
 ```
 
 ## Testing Strategy

@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Linear scan over stored embeddings now distributes across all available CPU cores
   - Near-linear speedup for large embedding collections (>1 000 chunks)
 - **Storage**: Pre-size embedding byte buffers in `store_embedding()` and `store_embeddings_batch()`
-  - `Vec::with_capacity(embedding.len() * 4)` avoids 2–3 buffer reallocations per embedding
+  - `Vec::with_capacity(embedding.len() * 4)` avoids repeated heap reallocations per embedding
   - Reduces heap churn when indexing large batches of chunks
 
 ## [1.2.4] - 2026-02-08

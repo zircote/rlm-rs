@@ -130,9 +130,18 @@ without changing the public API surface:
 ```rust
 let mut similarities: Vec<(i64, f32)> = all_embeddings
     .par_iter()
-    .map(|(chunk_id, embedding)| (*chunk_id, cosine_similarity(&query_embedding, embedding)))
+    .map(|(chunk_id, embedding)| {
+        let sim = cosine_similarity(&query_embedding, embedding);
+        (*chunk_id, sim)
+    })
     .filter(|(_, sim)| *sim >= config.similarity_threshold)
     .collect();
+
+// Sort by similarity descending
+similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+// Limit results
+similarities.truncate(config.top_k * 2);
 ```
 
 The `rayon` import is scoped to the function body (`use rayon::prelude::*;`) to keep the
