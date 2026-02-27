@@ -541,11 +541,19 @@ use rlm_rs::search::{hybrid_search, SearchConfig};
 
 let config = SearchConfig {
     top_k: 10,
-    threshold: 0.3,
+    similarity_threshold: 0.3,
     rrf_k: 60,
-    mode: SearchMode::Hybrid,
-    buffer_id: Some(buffer_id),
+    use_semantic: true,
+    use_bm25: true,
 };
+
+// Or using the builder pattern:
+let config = SearchConfig::new()
+    .with_top_k(10)
+    .with_threshold(0.3)
+    .with_rrf_k(60)
+    .with_semantic(true)
+    .with_bm25(true);
 
 let results = hybrid_search(&storage, embedder.as_ref(), "your query", &config)?;
 for result in results {
