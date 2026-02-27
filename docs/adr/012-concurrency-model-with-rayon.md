@@ -121,6 +121,23 @@ Low-level concurrency primitives.
 
 We chose **Rayon** for parallel processing with the following patterns:
 
+### Parallel Semantic Search
+
+`semantic_search()` uses `par_iter()` to distribute the O(n) cosine-similarity scan across
+available CPU cores. This provides near-linear speedup for collections of >1 000 embeddings
+without changing the public API surface:
+
+```rust
+let mut similarities: Vec<(i64, f32)> = all_embeddings
+    .par_iter()
+    .map(|(chunk_id, embedding)| (*chunk_id, cosine_similarity(&query_embedding, embedding)))
+    .filter(|(_, sim)| *sim >= config.similarity_threshold)
+    .collect();
+```
+
+The `rayon` import is scoped to the function body (`use rayon::prelude::*;`) to keep the
+module-level namespace clean.
+
 ### Parallel Chunking
 
 The `ParallelChunker` uses Rayon for concurrent chunk processing:
@@ -227,7 +244,7 @@ let results: Result<Vec<Chunk>> = segments
 |-----------|------------|-------------------|---------|
 | Chunk 1MB | 50ms | 15ms | 3.3x |
 | Embed 100 chunks | 2000ms | 300ms | 6.7x |
-| Search 1000 chunks | 100ms | 20ms | 5x |
+| Semantic search 1000 chunks | 100ms | 20ms | 5x |
 
 *Measurements on Apple M1 Pro, representative workloads*
 
