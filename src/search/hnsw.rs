@@ -3,6 +3,7 @@
 //! Provides fast approximate nearest neighbor search using the usearch library.
 //! Falls back to brute-force search when usearch is not available.
 
+use crate::embedding::DEFAULT_DIMENSIONS;
 use crate::error::{Result, SearchError};
 #[cfg(feature = "usearch-hnsw")]
 use std::collections::HashMap;
@@ -64,7 +65,7 @@ pub struct HnswConfig {
 impl Default for HnswConfig {
     fn default() -> Self {
         Self {
-            dimensions: 384, // Default for all-MiniLM-L6-v2
+            dimensions: DEFAULT_DIMENSIONS, // Default for BGE-M3 (1024)
             connectivity: 16,
             expansion_add: 128,
             expansion_search: 64,
@@ -525,7 +526,7 @@ mod tests {
     #[test]
     fn test_hnsw_config_default() {
         let config = HnswConfig::default();
-        assert_eq!(config.dimensions, 384);
+        assert_eq!(config.dimensions, DEFAULT_DIMENSIONS);
         assert_eq!(config.connectivity, 16);
         assert_eq!(config.expansion_add, 128);
         assert_eq!(config.expansion_search, 64);
