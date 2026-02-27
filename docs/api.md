@@ -723,12 +723,12 @@ When the `usearch-hnsw` feature is enabled, `HnswIndex` provides O(log n) approx
 
 Enable the feature in `Cargo.toml`:
 
-````toml
+```toml
 [dependencies]
 rlm-cli = { version = "1.2", features = ["usearch-hnsw"] }
 # or the full bundle:
 rlm-cli = { version = "1.2", features = ["full-search"] }
-````
+```
 
 ##### `HnswConfig`
 
@@ -871,7 +871,7 @@ println!("Dims:  {}", embedder.dimensions());
 | `.dimensions()` | `usize` | Output vector length |
 | `.model_name()` | `&'static str` | Model identifier (stored in DB for version tracking) |
 | `.embed(text)` | `Result<Vec<f32>>` | Embed a single text |
-| `.embed_batch(texts)` | `Result<Vec<Vec<f32>>>` | Embed multiple texts; default impl calls `embed` sequentially |
+| `.embed_batch(texts)` | `Result<Vec<Vec<f32>>>` | Embed multiple texts; trait default calls `embed` sequentially; concrete implementations may batch |
 
 ### `create_embedder`
 
@@ -920,7 +920,7 @@ assert_eq!(v.len(), DEFAULT_DIMENSIONS);
 | Property | Value |
 |----------|-------|
 | Dimensions | Configurable (typically `DEFAULT_DIMENSIONS = 1024`) |
-| `model_name()` | `"fallback"` |
+| `model_name()` | `"fallback-hash-v1"` |
 | Semantics | None — hash-based, not suitable for production search |
 
 ### `cosine_similarity`
