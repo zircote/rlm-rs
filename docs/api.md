@@ -571,7 +571,8 @@ for result in results {
 **Constants:**
 
 ```rust
-use rlm_rs::search::{DEFAULT_SIMILARITY_THRESHOLD, DEFAULT_TOP_K, DEFAULT_PREVIEW_LEN};
+use rlm_rs::search::{DEFAULT_SIMILARITY_THRESHOLD, DEFAULT_TOP_K};
+// DEFAULT_PREVIEW_LEN is available via rlm_rs::search::DEFAULT_PREVIEW_LEN (not re-exported at crate root)
 // DEFAULT_SIMILARITY_THRESHOLD = 0.3
 // DEFAULT_TOP_K = 10
 // DEFAULT_PREVIEW_LEN = 150  (characters in content preview)
@@ -583,10 +584,10 @@ use rlm_rs::search::{DEFAULT_SIMILARITY_THRESHOLD, DEFAULT_TOP_K, DEFAULT_PREVIE
 use rlm_rs::search::{search_semantic, search_bm25};
 
 // Semantic-only search (cosine similarity on embeddings)
-let semantic_results = search_semantic(&storage, embedder.as_ref(), "query", &config)?;
+let semantic_results = search_semantic(&storage, embedder.as_ref(), "query", 10, 0.3)?;
 
 // BM25-only full-text search (no embeddings required)
-let bm25_results = search_bm25(&storage, "query", &config)?;
+let bm25_results = search_bm25(&storage, "query", 10)?;
 ```
 
 #### `SearchResult` Fields
@@ -902,6 +903,8 @@ pub use chunking::{Chunker, FixedChunker, SemanticChunker, available_strategies,
 pub use cli::{Cli, Commands, OutputFormat};
 
 // Embedding
+#[cfg(feature = "fastembed-embeddings")]
+pub use embedding::FastEmbedEmbedder;
 pub use embedding::{DEFAULT_DIMENSIONS, Embedder, FallbackEmbedder, cosine_similarity, create_embedder};
 
 // Search
