@@ -1,50 +1,56 @@
-# RLM-RS Test Improver Memory
+# Perf Improver Memory - rlm-rs
 
-## Build/Test Commands (Validated)
+## Last Updated
+2026-02-27
 
-- **Test (no fastembed - works in CI sandbox)**: `cargo test --no-default-features --locked`
-- **Test (full, needs network for ONNX download)**: `cargo test --features fastembed-embeddings --locked`
-- **Lint (strict)**: `cargo clippy --all-targets --all-features --locked -- -D warnings`
-- **Format**: `cargo fmt`
-- **Format check**: `cargo fmt -- --check`
-- **Build**: `cargo build --all-features --locked`
+## Validated Commands
 
-**Notes**: 
-- `fastembed-embeddings` feature requires downloading ONNX RT binaries at build time (network needed)
-- Pre-existing clippy errors in `src/search/hnsw.rs` (missing `# Errors` docs, `const fn`) - NOT new issues
+```bash
+cargo test --lib --no-default-features --locked   # Fast offline tests (287 tests, ~0.12s)
+cargo clippy --all-targets --no-default-features --locked  # Lint (no errors)
+cargo fmt -- --check                              # Format check
+cargo build --no-default-features --locked        # Build
+# NOTE: --features fastembed-embeddings requires ONNX binary download (blocked in CI sandbox)
+```
 
-## Testing Notes
+## Performance Notes
 
-- Tests use `#[allow(clippy::expect_used)]` or `.unwrap()` in test modules
-- SQLite storage tests use `SqliteStorage::in_memory()` helper
-- Test framework: Rust built-in + `proptest` + `test-case`
-- MSRV: 1.88
+- `semantic_search()` brute-force cosine scan: O(n × D) per query. Rayon parallelization implemented in PR #perf-assist/parallel-cosine-similarity-and-embed-alloc.
+- HNSW (usearch) is optional feature, disabled by default — sub-linear queries possible for large collections.
+- Embeddings: 1024-dim f32 (BGE-M3 model via fastembed), fallback uses hash-based FallbackEmbedder.
+- SQLite WAL mode enabled; transactions used for batch inserts.
 
-## Testing Backlog (Opportunities)
+## Round-Robin Task Tracker
 
-1. **[DONE - PR submitted 2026-02-27]** `SqliteStorage` embedding functions - 0 tests, 23 added
-2. RRF/weighted_rrf edge cases (empty weighted list, NaN/infinity scores)
-3. `src/chunking/semantic.rs` - 29 tests but complex Unicode logic may have gaps
-4. `src/chunking/code.rs` - 14 tests, language-aware chunking logic
-5. Integration tests: FTS search + embedding pipeline end-to-end
+| Task | Last Run | Notes |
+|------|----------|-------|
+| Task 1: Discover Commands | 2026-02-27 | Commands validated |
+| Task 2: Identify Opportunities | 2026-02-27 | Backlog populated |
+| Task 3: Implement Improvements | 2026-02-27 | PR submitted |
+| Task 4: Maintain PRs | - | First run |
+| Task 5: Comment on Issues | - | First run |
+| Task 6: Measurement Infrastructure | - | First run |
+| Task 7: Monthly Summary | 2026-02-27 | Issue created |
 
-## Work In Progress / Completed
+## Optimization Backlog
 
-### 2026-02-27 - Run 1
-- **Task 1**: Validated build commands. `cargo test --no-default-features --locked` = 88 tests pass
-- **Task 3**: Added 23 embedding tests to `src/storage/sqlite.rs` (PR submitted as draft)
-- **Task 7**: Created Monthly Activity Summary issue
+Priority order:
+1. ✅ Parallel cosine similarity (`semantic_search`, `src/search/mod.rs`) — DONE
+2. ✅ Pre-size embedding byte buffers (`store_embedding`, `src/storage/sqlite.rs`) — DONE
+3. `buffer_fully_embedded` O(n) SQLite queries → single COUNT(*) query
+4. Benchmark suite: `[[bench]]` commented out in Cargo.toml — add criterion benchmarks
+5. HNSW default: usearch feature disabled by default; large-collection users benefit from enabling
 
-## Tasks Last Run (Round-Robin)
+## Work In Progress
 
-- Task 1 (commands): 2026-02-27
-- Task 3 (implement tests): 2026-02-27
-- Task 7 (monthly summary): 2026-02-27
+Branch: `perf-assist/parallel-cosine-similarity-and-embed-alloc`
+Status: PR submitted (patch captured via safeoutputs)
+Changes: par_iter in semantic_search + Vec::with_capacity for embedding buffers
 
-## Maintainer Priorities
+## Completed Work
 
-No specific priorities communicated yet.
+(None yet — first run)
 
-## Previously Checked Off Items
+## Monthly Summary Issues
 
-(none)
+- 2026-02: Created (safeoutputs) — issue title "[Perf Improver] Monthly Activity 2026-02"
