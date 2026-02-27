@@ -800,6 +800,115 @@ let results = index.search(&query_embedding, 10)?;
 
 ---
 
+## Embedding
+
+**Location:** `rlm_rs::embedding`
+
+### `Embedder` Trait
+
+The `Embedder` trait is the core interface for all embedding implementations. Embedders must be `Send + Sync` to support parallel chunk processing.
+
+````rust
+use rlm_rs::embedding::{Embedder, create_embedder, DEFAULT_DIMENSIONS};
+
+let embedder = create_embedder()?;  // FastEmbedEmbedder or FallbackEmbedder
+
+// Single text
+let vector: Vec<f32> = embedder.embed("Hello, world!")?;
+assert_eq!(vector.len(), DEFAULT_DIMENSIONS);
+
+// Batch (more efficient with fastembed)
+let vectors = embedder.embed_batch(&["first text", "second text"])?;
+
+// Model identity
+println!("Model: {}", embedder.model_name());
+println!("Dims:  {}", embedder.dimensions());
+````
+
+`Embedder` trait methods:
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `.dimensions()` | `usize` | Output vector length |
+| `.model_name()` | `&'static str` | Model identifier (stored in DB for version tracking) |
+| `.embed(text)` | `Result<Vec<f32>>` | Embed a single text |
+| `.embed_batch(texts)` | `Result<Vec<Vec<f32>>>` | Embed multiple texts; trait default calls `embed` sequentially; concrete implementations may batch |
+
+### `create_embedder`
+
+````rust
+use rlm_rs::embedding::create_embedder;
+
+let embedder: Box<dyn Embedder> = create_embedder()?;
+````
+
+Returns `FastEmbedEmbedder` when the `fastembed-embeddings` feature is enabled, otherwise `FallbackEmbedder`. Use this factory instead of constructing concrete types directly so code works under both feature configurations.
+
+### `FastEmbedEmbedder`
+
+**Requires:** `fastembed-embeddings` feature (enabled by default)
+
+Uses the [fastembed-rs](https://github.com/Anush008/fastembed-rs) library to run BGE-M3 locally. The model is downloaded on first use and cached on disk.
+
+````rust
+#[cfg(feature = "fastembed-embeddings")]
+use rlm_rs::embedding::FastEmbedEmbedder;
+
+let embedder = FastEmbedEmbedder::new()?;
+println!("{}", embedder.model_name()); // "BGE-M3"
+println!("{}", embedder.dimensions()); // 1024
+````
+
+| Property | Value |
+|----------|-------|
+| Model | BGE-M3 |
+| Dimensions | 1024 (`DEFAULT_DIMENSIONS`) |
+| Max tokens | 8192 |
+| `model_name()` | `"BGE-M3"` |
+
+### `FallbackEmbedder`
+
+A deterministic hash-based embedder used when `fastembed-embeddings` is disabled. It produces consistent pseudo-embeddings useful for testing and offline environments, but without semantic meaning.
+
+````rust
+use rlm_rs::embedding::{FallbackEmbedder, DEFAULT_DIMENSIONS};
+
+let embedder = FallbackEmbedder::new(DEFAULT_DIMENSIONS);
+let v = embedder.embed("test")?;
+assert_eq!(v.len(), DEFAULT_DIMENSIONS);
+````
+
+| Property | Value |
+|----------|-------|
+| Dimensions | Configurable (typically `DEFAULT_DIMENSIONS = 1024`) |
+| `model_name()` | `"fallback-hash-v1"` |
+| Semantics | None — hash-based, not suitable for production search |
+
+### `cosine_similarity`
+
+````rust
+use rlm_rs::embedding::cosine_similarity;
+
+let a = vec![1.0_f32, 0.0, 0.0];
+let b = vec![0.0_f32, 1.0, 0.0];
+let sim = cosine_similarity(&a, &b); // 0.0 (orthogonal)
+
+let identical = cosine_similarity(&a, &a); // 1.0
+````
+
+Returns a value in `[-1.0, 1.0]`. Returns `0.0` for vectors of different lengths or zero-magnitude vectors. For L2-normalized vectors, this is equivalent to the dot product.
+
+### `DEFAULT_DIMENSIONS`
+
+````rust
+use rlm_rs::embedding::DEFAULT_DIMENSIONS;
+// DEFAULT_DIMENSIONS = 1024  (BGE-M3 output size)
+````
+
+The authoritative vector dimension constant for the codebase. Use this wherever an embedding size is required (e.g., `HnswConfig`, `FallbackEmbedder`) to ensure consistency if the default model ever changes.
+
+---
+
 ## I/O
 
 ### File Reading
