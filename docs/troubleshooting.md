@@ -451,7 +451,7 @@ rlm-cli chunk list docs
 
 ````bash
 rlm-cli chunk status
-# Should show: Embedded: X/X (100%)
+# Shows embedding status for all buffers
 ````
 
 4. **Try different search mode:**
