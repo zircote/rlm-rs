@@ -1305,4 +1305,420 @@ mod tests {
         let exported = storage.export_buffers().unwrap();
         assert_eq!(exported, "First\n\nSecond");
     }
+
+    // Helper: create a buffer with one chunk and return (buffer_id, chunk_id).
+    fn setup_buffer_with_chunk(storage: &mut SqliteStorage) -> (i64, i64) {
+        let buffer = Buffer::from_content("test content".to_string());
+        let buffer_id = storage.add_buffer(&buffer).unwrap();
+        let chunks = vec![Chunk::new(buffer_id, "test content".to_string(), 0..12, 0)];
+        storage.add_chunks(buffer_id, &chunks).unwrap();
+        let chunk_id = storage.get_chunks(buffer_id).unwrap()[0].id.unwrap();
+        (buffer_id, chunk_id)
+    }
+
+    #[test]
+    fn test_store_and_get_embedding() {
+        let mut storage = setup();
+        let (_buffer_id, chunk_id) = setup_buffer_with_chunk(&mut storage);
+
+        let embedding = vec![0.1_f32, 0.2, 0.3, 0.4];
+        storage
+            .store_embedding(chunk_id, &embedding, Some("test-model"))
+            .unwrap();
+
+        let loaded = storage.get_embedding(chunk_id).unwrap().unwrap();
+        assert_eq!(loaded.len(), 4);
+        for (a, b) in loaded.iter().zip(embedding.iter()) {
+            assert!((a - b).abs() < 1e-6, "expected {b}, got {a}");
+        }
+    }
+
+    #[test]
+    fn test_get_embedding_nonexistent() {
+        let storage = setup();
+        let result = storage.get_embedding(9999).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_store_embedding_upsert() {
+        let mut storage = setup();
+        let (_buffer_id, chunk_id) = setup_buffer_with_chunk(&mut storage);
+
+        let embedding1 = vec![0.1_f32, 0.2];
+        storage
+            .store_embedding(chunk_id, &embedding1, Some("model-a"))
+            .unwrap();
+
+        // Upsert with new values
+        let embedding2 = vec![0.9_f32, 0.8];
+        storage
+            .store_embedding(chunk_id, &embedding2, Some("model-a"))
+            .unwrap();
+
+        let loaded = storage.get_embedding(chunk_id).unwrap().unwrap();
+        for (a, b) in loaded.iter().zip(embedding2.iter()) {
+            assert!((a - b).abs() < 1e-6);
+        }
+    }
+
+    #[test]
+    fn test_has_embedding() {
+        let mut storage = setup();
+        let (_buffer_id, chunk_id) = setup_buffer_with_chunk(&mut storage);
+
+        assert!(!storage.has_embedding(chunk_id).unwrap());
+
+        storage.store_embedding(chunk_id, &[0.1_f32], None).unwrap();
+
+        assert!(storage.has_embedding(chunk_id).unwrap());
+    }
+
+    #[test]
+    fn test_embedding_count() {
+        let mut storage = setup();
+        assert_eq!(storage.embedding_count().unwrap(), 0);
+
+        let (buffer_id, chunk_id) = setup_buffer_with_chunk(&mut storage);
+
+        // Add a second chunk
+        let chunks2 = vec![Chunk::new(buffer_id, "more".to_string(), 0..4, 1)];
+        storage.add_chunks(buffer_id, &chunks2).unwrap();
+        let chunk_id2 = storage
+            .get_chunks(buffer_id)
+            .unwrap()
+            .into_iter()
+            .find(|c| c.id != Some(chunk_id))
+            .unwrap()
+            .id
+            .unwrap();
+
+        storage.store_embedding(chunk_id, &[0.1_f32], None).unwrap();
+        assert_eq!(storage.embedding_count().unwrap(), 1);
+
+        storage
+            .store_embedding(chunk_id2, &[0.2_f32], None)
+            .unwrap();
+        assert_eq!(storage.embedding_count().unwrap(), 2);
+    }
+
+    #[test]
+    fn test_delete_embedding() {
+        let mut storage = setup();
+        let (_buffer_id, chunk_id) = setup_buffer_with_chunk(&mut storage);
+
+        storage.store_embedding(chunk_id, &[0.1_f32], None).unwrap();
+        assert!(storage.has_embedding(chunk_id).unwrap());
+
+        storage.delete_embedding(chunk_id).unwrap();
+        assert!(!storage.has_embedding(chunk_id).unwrap());
+    }
+
+    #[test]
+    fn test_store_embeddings_batch() {
+        let mut storage = setup();
+        let (buffer_id, chunk_id1) = setup_buffer_with_chunk(&mut storage);
+
+        // Add second chunk
+        let chunks2 = vec![Chunk::new(buffer_id, "second".to_string(), 0..6, 1)];
+        storage.add_chunks(buffer_id, &chunks2).unwrap();
+        let chunk_id2 = storage
+            .get_chunks(buffer_id)
+            .unwrap()
+            .into_iter()
+            .find(|c| c.id != Some(chunk_id1))
+            .unwrap()
+            .id
+            .unwrap();
+
+        let batch = vec![
+            (chunk_id1, vec![0.1_f32, 0.2]),
+            (chunk_id2, vec![0.3_f32, 0.4]),
+        ];
+        storage
+            .store_embeddings_batch(&batch, Some("batch-model"))
+            .unwrap();
+
+        assert!(storage.has_embedding(chunk_id1).unwrap());
+        assert!(storage.has_embedding(chunk_id2).unwrap());
+        assert_eq!(storage.embedding_count().unwrap(), 2);
+    }
+
+    #[test]
+    fn test_get_all_embeddings() {
+        let mut storage = setup();
+        let (buffer_id, chunk_id1) = setup_buffer_with_chunk(&mut storage);
+
+        let chunks2 = vec![Chunk::new(buffer_id, "second".to_string(), 0..6, 1)];
+        storage.add_chunks(buffer_id, &chunks2).unwrap();
+        let chunk_id2 = storage
+            .get_chunks(buffer_id)
+            .unwrap()
+            .into_iter()
+            .find(|c| c.id != Some(chunk_id1))
+            .unwrap()
+            .id
+            .unwrap();
+
+        storage
+            .store_embedding(chunk_id1, &[0.1_f32], Some("m"))
+            .unwrap();
+        storage
+            .store_embedding(chunk_id2, &[0.2_f32], Some("m"))
+            .unwrap();
+
+        let all = storage.get_all_embeddings().unwrap();
+        assert_eq!(all.len(), 2);
+    }
+
+    #[test]
+    fn test_get_embedding_models() {
+        let mut storage = setup();
+        let (buffer_id, chunk_id) = setup_buffer_with_chunk(&mut storage);
+
+        // No models initially
+        assert!(storage.get_embedding_models(buffer_id).unwrap().is_empty());
+
+        storage
+            .store_embedding(chunk_id, &[0.1_f32], Some("model-x"))
+            .unwrap();
+
+        let models = storage.get_embedding_models(buffer_id).unwrap();
+        assert_eq!(models.len(), 1);
+        assert_eq!(models[0], "model-x");
+    }
+
+    #[test]
+    fn test_get_embedding_model_counts() {
+        let mut storage = setup();
+        let (buffer_id, chunk_id1) = setup_buffer_with_chunk(&mut storage);
+
+        let chunks2 = vec![Chunk::new(buffer_id, "extra".to_string(), 0..5, 1)];
+        storage.add_chunks(buffer_id, &chunks2).unwrap();
+        let chunk_id2 = storage
+            .get_chunks(buffer_id)
+            .unwrap()
+            .into_iter()
+            .find(|c| c.id != Some(chunk_id1))
+            .unwrap()
+            .id
+            .unwrap();
+
+        storage
+            .store_embedding(chunk_id1, &[0.1_f32], Some("model-a"))
+            .unwrap();
+        storage
+            .store_embedding(chunk_id2, &[0.2_f32], Some("model-a"))
+            .unwrap();
+
+        let counts = storage.get_embedding_model_counts(buffer_id).unwrap();
+        assert_eq!(counts.len(), 1);
+        assert_eq!(counts[0], (Some("model-a".to_string()), 2));
+    }
+
+    #[test]
+    fn test_get_chunks_needing_embedding_no_embeddings() {
+        let mut storage = setup();
+        let (buffer_id, _chunk_id) = setup_buffer_with_chunk(&mut storage);
+
+        let needing = storage
+            .get_chunks_needing_embedding(buffer_id, None)
+            .unwrap();
+        assert_eq!(needing.len(), 1);
+    }
+
+    #[test]
+    fn test_get_chunks_needing_embedding_with_model() {
+        let mut storage = setup();
+        let (buffer_id, chunk_id) = setup_buffer_with_chunk(&mut storage);
+
+        // Add second chunk
+        let chunks2 = vec![Chunk::new(buffer_id, "b".to_string(), 0..1, 1)];
+        storage.add_chunks(buffer_id, &chunks2).unwrap();
+        let chunk_id2 = storage
+            .get_chunks(buffer_id)
+            .unwrap()
+            .into_iter()
+            .find(|c| c.id != Some(chunk_id))
+            .unwrap()
+            .id
+            .unwrap();
+
+        // chunk_id has model-a, chunk_id2 has no embedding
+        storage
+            .store_embedding(chunk_id, &[0.1_f32], Some("model-a"))
+            .unwrap();
+
+        // When checking for model-a: chunk_id2 needs one (no embedding)
+        let needing = storage
+            .get_chunks_needing_embedding(buffer_id, Some("model-a"))
+            .unwrap();
+        assert!(needing.contains(&chunk_id2));
+        assert!(!needing.contains(&chunk_id));
+
+        // When checking for model-b: chunk_id has wrong model, chunk_id2 has none
+        let needing_b = storage
+            .get_chunks_needing_embedding(buffer_id, Some("model-b"))
+            .unwrap();
+        assert!(needing_b.contains(&chunk_id));
+        assert!(needing_b.contains(&chunk_id2));
+    }
+
+    #[test]
+    fn test_get_chunks_without_embedding() {
+        let mut storage = setup();
+        let (buffer_id, chunk_id) = setup_buffer_with_chunk(&mut storage);
+
+        let without = storage.get_chunks_without_embedding(buffer_id).unwrap();
+        assert_eq!(without.len(), 1);
+        assert!(without.contains(&chunk_id));
+
+        storage.store_embedding(chunk_id, &[0.1_f32], None).unwrap();
+
+        let without_after = storage.get_chunks_without_embedding(buffer_id).unwrap();
+        assert!(without_after.is_empty());
+    }
+
+    #[test]
+    fn test_delete_embeddings_by_model_named() {
+        let mut storage = setup();
+        let (buffer_id, chunk_id1) = setup_buffer_with_chunk(&mut storage);
+
+        let chunks2 = vec![Chunk::new(buffer_id, "b".to_string(), 0..1, 1)];
+        storage.add_chunks(buffer_id, &chunks2).unwrap();
+        let chunk_id2 = storage
+            .get_chunks(buffer_id)
+            .unwrap()
+            .into_iter()
+            .find(|c| c.id != Some(chunk_id1))
+            .unwrap()
+            .id
+            .unwrap();
+
+        storage
+            .store_embedding(chunk_id1, &[0.1_f32], Some("model-a"))
+            .unwrap();
+        storage
+            .store_embedding(chunk_id2, &[0.2_f32], Some("model-b"))
+            .unwrap();
+
+        let deleted = storage
+            .delete_embeddings_by_model(buffer_id, Some("model-a"))
+            .unwrap();
+        assert_eq!(deleted, 1);
+        assert!(!storage.has_embedding(chunk_id1).unwrap());
+        assert!(storage.has_embedding(chunk_id2).unwrap());
+    }
+
+    #[test]
+    fn test_delete_embeddings_by_model_null() {
+        let mut storage = setup();
+        let (buffer_id, chunk_id1) = setup_buffer_with_chunk(&mut storage);
+
+        let chunks2 = vec![Chunk::new(buffer_id, "b".to_string(), 0..1, 1)];
+        storage.add_chunks(buffer_id, &chunks2).unwrap();
+        let chunk_id2 = storage
+            .get_chunks(buffer_id)
+            .unwrap()
+            .into_iter()
+            .find(|c| c.id != Some(chunk_id1))
+            .unwrap()
+            .id
+            .unwrap();
+
+        storage
+            .store_embedding(chunk_id1, &[0.1_f32], None)
+            .unwrap();
+        storage
+            .store_embedding(chunk_id2, &[0.2_f32], Some("model-b"))
+            .unwrap();
+
+        // Delete only the NULL-model embedding
+        let deleted = storage.delete_embeddings_by_model(buffer_id, None).unwrap();
+        assert_eq!(deleted, 1);
+        assert!(!storage.has_embedding(chunk_id1).unwrap());
+        assert!(storage.has_embedding(chunk_id2).unwrap());
+    }
+
+    #[test]
+    fn test_get_embedding_stats() {
+        let mut storage = setup();
+        let (buffer_id, chunk_id) = setup_buffer_with_chunk(&mut storage);
+
+        // Add second chunk
+        let chunks2 = vec![Chunk::new(buffer_id, "extra".to_string(), 0..5, 1)];
+        storage.add_chunks(buffer_id, &chunks2).unwrap();
+
+        // Stats before embedding
+        let stats = storage.get_embedding_stats(buffer_id).unwrap();
+        assert_eq!(stats.total_chunks, 2);
+        assert_eq!(stats.embedded_chunks, 0);
+
+        // Embed one chunk
+        storage
+            .store_embedding(chunk_id, &[0.1_f32], Some("m1"))
+            .unwrap();
+
+        let stats = storage.get_embedding_stats(buffer_id).unwrap();
+        assert_eq!(stats.total_chunks, 2);
+        assert_eq!(stats.embedded_chunks, 1);
+        assert_eq!(stats.model_counts.len(), 1);
+    }
+
+    #[test]
+    fn test_search_fts_finds_match() {
+        let mut storage = setup();
+        let buffer = Buffer::from_content("The quick brown fox jumps".to_string());
+        let buffer_id = storage.add_buffer(&buffer).unwrap();
+
+        let chunks = vec![
+            Chunk::new(buffer_id, "The quick brown fox".to_string(), 0..19, 0),
+            Chunk::new(buffer_id, "fox jumps".to_string(), 20..29, 1),
+        ];
+        storage.add_chunks(buffer_id, &chunks).unwrap();
+
+        let results = storage.search_fts("quick", 10).unwrap();
+        // At least the first chunk should match
+        assert!(!results.is_empty());
+        // Scores should be positive
+        for (_id, score) in &results {
+            assert!(*score > 0.0);
+        }
+    }
+
+    #[test]
+    fn test_search_fts_no_match() {
+        let mut storage = setup();
+        let buffer = Buffer::from_content("The quick brown fox".to_string());
+        let buffer_id = storage.add_buffer(&buffer).unwrap();
+
+        let chunks = vec![Chunk::new(
+            buffer_id,
+            "The quick brown fox".to_string(),
+            0..19,
+            0,
+        )];
+        storage.add_chunks(buffer_id, &chunks).unwrap();
+
+        let results = storage.search_fts("zzzyyyxxx", 10).unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_search_fts_respects_limit() {
+        let mut storage = setup();
+        let buffer = Buffer::from_content("hello world hello world hello".to_string());
+        let buffer_id = storage.add_buffer(&buffer).unwrap();
+
+        // Add 3 chunks all containing "hello"
+        let chunks = vec![
+            Chunk::new(buffer_id, "hello world".to_string(), 0..11, 0),
+            Chunk::new(buffer_id, "hello world".to_string(), 12..23, 1),
+            Chunk::new(buffer_id, "hello".to_string(), 24..29, 2),
+        ];
+        storage.add_chunks(buffer_id, &chunks).unwrap();
+
+        let results = storage.search_fts("hello", 2).unwrap();
+        assert!(results.len() <= 2);
+    }
 }
