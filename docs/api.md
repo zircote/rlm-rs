@@ -539,19 +539,180 @@ println!("Embedded: {}, Skipped: {}", result.embedded_count, result.skipped_coun
 ```rust
 use rlm_rs::search::{hybrid_search, SearchConfig};
 
-let config = SearchConfig {
-    top_k: 10,
-    threshold: 0.3,
-    rrf_k: 60,
-    mode: SearchMode::Hybrid,
-    buffer_id: Some(buffer_id),
-};
+// Builder pattern (recommended)
+let config = SearchConfig::new()
+    .with_top_k(10)
+    .with_threshold(0.3)
+    .with_rrf_k(60)
+    .with_semantic(true)
+    .with_bm25(true);
 
 let results = hybrid_search(&storage, embedder.as_ref(), "your query", &config)?;
 for result in results {
     println!("Chunk {}: score {:.4}", result.chunk_id, result.score);
 }
 ```
+
+#### `SearchConfig` Builder
+
+**Location:** `rlm_rs::search::SearchConfig`
+
+`SearchConfig` exposes a builder API. All methods consume `self` and return a new `SearchConfig`.
+
+| Method | Description | Default |
+|--------|-------------|---------|
+| `SearchConfig::new()` | Create config with defaults | — |
+| `.with_top_k(n)` | Maximum results to return | `10` |
+| `.with_threshold(f32)` | Minimum semantic similarity score | `0.3` |
+| `.with_rrf_k(u32)` | RRF *k* smoothing parameter | `60` |
+| `.with_semantic(bool)` | Enable/disable semantic search leg | `true` |
+| `.with_bm25(bool)` | Enable/disable BM25 search leg | `true` |
+
+**Constants:**
+
+```rust
+use rlm_rs::search::{DEFAULT_SIMILARITY_THRESHOLD, DEFAULT_TOP_K, DEFAULT_PREVIEW_LEN};
+// DEFAULT_SIMILARITY_THRESHOLD = 0.3
+// DEFAULT_TOP_K = 10
+// DEFAULT_PREVIEW_LEN = 150  (characters in content preview)
+```
+
+#### Standalone Search Functions
+
+```rust
+use rlm_rs::search::{search_semantic, search_bm25};
+
+// Semantic-only search (cosine similarity on embeddings)
+let semantic_results = search_semantic(&storage, embedder.as_ref(), "query", &config)?;
+
+// BM25-only full-text search (no embeddings required)
+let bm25_results = search_bm25(&storage, "query", &config)?;
+```
+
+#### `SearchResult` Fields
+
+```rust
+pub struct SearchResult {
+    pub chunk_id: i64,           // Database ID of the chunk
+    pub buffer_id: i64,          // Buffer this chunk belongs to
+    pub index: usize,            // 0-based position within the buffer
+    pub score: f64,              // Combined RRF score (higher is better)
+    pub semantic_score: Option<f32>,  // Cosine similarity (if semantic search ran)
+    pub bm25_score: Option<f64>,      // BM25 relevance (if BM25 search ran)
+    pub content_preview: Option<String>, // Snippet; populated by populate_previews()
+}
+```
+
+#### `populate_previews`
+
+Fetches chunk content and fills `content_preview` on each `SearchResult`.
+
+```rust
+use rlm_rs::search::{hybrid_search, populate_previews, DEFAULT_PREVIEW_LEN};
+
+let mut results = hybrid_search(&storage, embedder.as_ref(), "query", &config)?;
+populate_previews(&storage, &mut results, DEFAULT_PREVIEW_LEN)?;
+
+for r in &results {
+    println!("[{}] {}", r.chunk_id, r.content_preview.as_deref().unwrap_or(""));
+}
+```
+
+#### Embedding Status Utilities
+
+```rust
+use rlm_rs::search::{buffer_fully_embedded, check_model_mismatch,
+                     get_embedding_model_info, EmbeddingModelInfo};
+
+// Check if every chunk in a buffer has an embedding
+let ready = buffer_fully_embedded(&storage, buffer_id)?;
+
+// Detect if existing embeddings used a different model
+if let Some(old_model) = check_model_mismatch(&storage, buffer_id, "BGE-M3")? {
+    eprintln!("Warning: buffer was embedded with '{old_model}', current model is BGE-M3");
+}
+
+// Full model breakdown per buffer
+let info: EmbeddingModelInfo = get_embedding_model_info(&storage, buffer_id)?;
+println!("Total embeddings: {}", info.total_embeddings);
+println!("Mixed models: {}", info.has_mixed_models);
+for (model, count) in &info.models {
+    println!("  {:?}: {} embeddings", model, count);
+}
+```
+
+`EmbeddingModelInfo` fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `models` | `Vec<(Option<String>, i64)>` | Model name → embedding count pairs |
+| `total_embeddings` | `i64` | Sum of all embeddings for the buffer |
+| `has_mixed_models` | `bool` | `true` when more than one model is present |
+
+#### Incremental Embedding
+
+`embed_buffer_chunks_incremental` skips chunks that already have an up-to-date embedding, making repeated calls efficient for large or frequently-updated buffers.
+
+```rust
+use rlm_rs::search::embed_buffer_chunks_incremental;
+
+let result = embed_buffer_chunks_incremental(
+    &mut storage,
+    embedder.as_ref(),
+    buffer_id,
+    false,  // force_reembed: set true to replace embeddings from a different model
+)?;
+
+println!("Embedded: {}", result.embedded_count);
+println!("Skipped (already current): {}", result.skipped_count);
+println!("Replaced (model changed): {}", result.replaced_count);
+println!("Progress: {:.1}%", result.completion_percentage());
+println!("Had changes: {}", result.had_changes());
+```
+
+`IncrementalEmbedResult` fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `embedded_count` | `usize` | New embeddings created this run |
+| `skipped_count` | `usize` | Chunks already embedded with current model |
+| `replaced_count` | `usize` | Old embeddings replaced (different model) |
+| `total_chunks` | `usize` | Total chunks in the buffer |
+| `model_name` | `String` | Model used for this run |
+
+Helper methods: `.had_changes() -> bool`, `.completion_percentage() -> f64`.
+
+#### Reciprocal Rank Fusion (RRF)
+
+**Location:** `rlm_rs::search::{RrfConfig, reciprocal_rank_fusion, weighted_rrf}`
+
+RRF merges multiple independently-ranked lists into a single fused ranking without requiring score normalisation.
+
+```rust
+use rlm_rs::search::{RrfConfig, reciprocal_rank_fusion, weighted_rrf};
+
+// Standard RRF — equal weight to every list
+let config = RrfConfig::new(60);   // k=60 is the paper's recommended default
+let semantic_ids = vec![3_i64, 1, 5, 2, 4];
+let bm25_ids     = vec![1_i64, 3, 2, 5, 4];
+let fused = reciprocal_rank_fusion(&[&semantic_ids, &bm25_ids], &config);
+
+// Weighted RRF — give semantic results twice the weight of BM25
+let weighted = weighted_rrf(
+    &[(&semantic_ids, 2.0), (&bm25_ids, 1.0)],
+    &config,
+);
+
+for (chunk_id, score) in &fused {
+    println!("chunk {chunk_id}: {score:.4}");
+}
+```
+
+`RrfConfig` fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `k` | `u32` | Smoothing constant — higher values give more weight to lower-ranked items (default: `60`) |
 
 #### HNSW Index (Optional)
 
@@ -739,6 +900,17 @@ pub use chunking::{Chunker, FixedChunker, SemanticChunker, available_strategies,
 
 // CLI
 pub use cli::{Cli, Commands, OutputFormat};
+
+// Embedding
+pub use embedding::{DEFAULT_DIMENSIONS, Embedder, FallbackEmbedder, cosine_similarity, create_embedder};
+
+// Search
+pub use search::{
+    DEFAULT_SIMILARITY_THRESHOLD, DEFAULT_TOP_K,
+    RrfConfig, SearchConfig, SearchResult,
+    buffer_fully_embedded, embed_buffer_chunks, hybrid_search,
+    reciprocal_rank_fusion, search_bm25, search_semantic, weighted_rrf,
+};
 ```
 
 ---
