@@ -782,21 +782,234 @@ for (chunk_id, score) in &fused {
 
 #### HNSW Index (Optional)
 
-When the `usearch-hnsw` feature is enabled:
+**Location:** `rlm_rs::search::{HnswIndex, HnswConfig, HnswResult}`
+
+When the `usearch-hnsw` feature is enabled, `HnswIndex` provides O(log n) approximate nearest-neighbor search backed by the `usearch` library. Without the feature, `HnswIndex` compiles as a stub that returns errors, allowing callers to fall back to brute-force cosine search.
+
+Enable the feature in `Cargo.toml`:
+
+```toml
+[dependencies]
+rlm-cli = { version = "1.2", features = ["usearch-hnsw"] }
+# or the full bundle:
+rlm-cli = { version = "1.2", features = ["full-search"] }
+```
+
+##### `HnswConfig`
 
 ```rust
 #[cfg(feature = "usearch-hnsw")]
-use rlm_rs::search::{HnswIndex, HnswConfig};
+use rlm_rs::search::HnswConfig;
 
-let config = HnswConfig::default(); // defaults to 1024 dimensions (BGE-M3)
+// Default config — 1024 dimensions (BGE-M3), M=16, ef_construction=128, ef_search=64
+let config = HnswConfig::default();
+
+// Custom config via builder
+let config = HnswConfig::with_dimensions(512)
+    .connectivity(32)        // M: max connections per node (higher → more accurate, slower build)
+    .expansion_add(200)      // ef_construction: search depth during index build
+    .expansion_search(100);  // ef_search: search depth during query
+```
+
+`HnswConfig` fields:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `dimensions` | `usize` | `1024` | Vector dimensions (must match embedder) |
+| `connectivity` | `usize` | `16` | M parameter — max edges per node |
+| `expansion_add` | `usize` | `128` | `ef_construction` — build-time search depth |
+| `expansion_search` | `usize` | `64` | `ef_search` — query-time search depth |
+
+`HnswConfig` builder methods:
+
+| Method | Description |
+|--------|-------------|
+| `HnswConfig::with_dimensions(usize)` | Create config with custom dimensions (all other fields default) |
+| `.connectivity(usize)` | Set M parameter |
+| `.expansion_add(usize)` | Set `ef_construction` |
+| `.expansion_search(usize)` | Set `ef_search` |
+
+##### `HnswIndex`
+
+```rust
+#[cfg(feature = "usearch-hnsw")]
+use rlm_rs::search::{HnswIndex, HnswConfig, HnswResult};
+use std::path::Path;
+
+let config = HnswConfig::default();
 let mut index = HnswIndex::new(&config)?;
 
-// Add vectors
+// Check feature availability at runtime
+if HnswIndex::is_available() {
+    println!("usearch HNSW is active");
+}
+
+// Single insert
 index.add(chunk_id, &embedding)?;
 
-// Search
-let results = index.search(&query_embedding, 10)?;
+// Batch insert (more efficient)
+let items: Vec<(i64, Vec<f32>)> = vec![(1, vec![0.1; 1024]), (2, vec![0.2; 1024])];
+let inserted = index.add_batch(&items)?;
+
+// Query
+let results: Vec<HnswResult> = index.search(&query_embedding, 10)?;
+for r in &results {
+    println!("chunk {}: similarity={:.4}", r.chunk_id, r.similarity);
+}
+
+// Inspect
+println!("Indexed vectors: {}", index.len());
+println!("Empty: {}", index.is_empty());
+println!("Dimensions: {}", index.dimensions());
+println!("Contains chunk 1: {}", index.contains(1));
+
+// Remove a vector
+let removed = index.remove(chunk_id)?;
+
+// Persistence
+index.save(Path::new(".rlm/hnsw.bin"))?;
+let loaded = HnswIndex::load(Path::new(".rlm/hnsw.bin"), &config)?;
+
+// Reset
+index.clear()?;
 ```
+
+`HnswIndex` methods:
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `HnswIndex::new(config)` | `Result<Self>` | Create a new empty index |
+| `HnswIndex::is_available()` | `bool` | `true` when usearch feature is compiled in |
+| `HnswIndex::load(path, config)` | `Result<Self>` | Load a previously saved index from disk |
+| `.add(chunk_id, vector)` | `Result<()>` | Insert or update a single vector |
+| `.add_batch(items)` | `Result<usize>` | Insert a slice of `(chunk_id, Vec<f32>)` pairs; returns count inserted |
+| `.remove(chunk_id)` | `Result<bool>` | Remove a vector; returns `true` if it existed |
+| `.search(query, k)` | `Result<Vec<HnswResult>>` | Find the k nearest neighbors |
+| `.save(path)` | `Result<()>` | Persist the index to disk |
+| `.clear()` | `Result<()>` | Remove all vectors from the index |
+| `.len()` | `usize` | Number of vectors currently indexed |
+| `.is_empty()` | `bool` | `true` when no vectors are indexed |
+| `.dimensions()` | `usize` | Vector dimensionality of the index |
+| `.contains(chunk_id)` | `bool` | `true` when the given chunk ID is indexed |
+
+##### `HnswResult`
+
+Each element returned by `HnswIndex::search` is an `HnswResult`:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `chunk_id` | `i64` | Database chunk ID |
+| `distance` | `f32` | Angular/cosine distance (lower = more similar) |
+| `similarity` | `f32` | `1 - distance` for normalized vectors (higher = more similar) |
+
+---
+
+## Embedding
+
+**Location:** `rlm_rs::embedding`
+
+### `Embedder` Trait
+
+The `Embedder` trait is the core interface for all embedding implementations. Embedders must be `Send + Sync` to support parallel chunk processing.
+
+```rust
+use rlm_rs::embedding::{Embedder, create_embedder, DEFAULT_DIMENSIONS};
+
+let embedder = create_embedder()?;  // FastEmbedEmbedder or FallbackEmbedder
+
+// Single text
+let vector: Vec<f32> = embedder.embed("Hello, world!")?;
+assert_eq!(vector.len(), DEFAULT_DIMENSIONS);
+
+// Batch (more efficient with fastembed)
+let vectors = embedder.embed_batch(&["first text", "second text"])?;
+
+// Model identity
+println!("Model: {}", embedder.model_name());
+println!("Dims:  {}", embedder.dimensions());
+```
+
+`Embedder` trait methods:
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `.dimensions()` | `usize` | Output vector length |
+| `.model_name()` | `&'static str` | Model identifier (stored in DB for version tracking) |
+| `.embed(text)` | `Result<Vec<f32>>` | Embed a single text |
+| `.embed_batch(texts)` | `Result<Vec<Vec<f32>>>` | Embed multiple texts; trait default calls `embed` sequentially; concrete implementations may batch |
+
+### `create_embedder`
+
+```rust
+use rlm_rs::embedding::create_embedder;
+
+let embedder: Box<dyn Embedder> = create_embedder()?;
+```
+
+Returns `FastEmbedEmbedder` when the `fastembed-embeddings` feature is enabled, otherwise `FallbackEmbedder`. Use this factory instead of constructing concrete types directly so code works under both feature configurations.
+
+### `FastEmbedEmbedder`
+
+**Requires:** `fastembed-embeddings` feature (enabled by default)
+
+Uses the [fastembed-rs](https://github.com/Anush008/fastembed-rs) library to run BGE-M3 locally. The model is downloaded on first use and cached on disk.
+
+```rust
+#[cfg(feature = "fastembed-embeddings")]
+use rlm_rs::embedding::FastEmbedEmbedder;
+
+let embedder = FastEmbedEmbedder::new()?;
+println!("{}", embedder.model_name()); // "BGE-M3"
+println!("{}", embedder.dimensions()); // 1024
+```
+
+| Property | Value |
+|----------|-------|
+| Model | BGE-M3 |
+| Dimensions | 1024 (`DEFAULT_DIMENSIONS`) |
+| Max tokens | 8192 |
+| `model_name()` | `"BGE-M3"` |
+
+### `FallbackEmbedder`
+
+A deterministic hash-based embedder used when `fastembed-embeddings` is disabled. It produces consistent pseudo-embeddings useful for testing and offline environments, but without semantic meaning.
+
+```rust
+use rlm_rs::embedding::{FallbackEmbedder, DEFAULT_DIMENSIONS};
+
+let embedder = FallbackEmbedder::new(DEFAULT_DIMENSIONS);
+let v = embedder.embed("test")?;
+assert_eq!(v.len(), DEFAULT_DIMENSIONS);
+```
+
+| Property | Value |
+|----------|-------|
+| Dimensions | Configurable (typically `DEFAULT_DIMENSIONS = 1024`) |
+| `model_name()` | `"fallback-hash-v1"` |
+| Semantics | None — hash-based, not suitable for production search |
+
+### `cosine_similarity`
+
+```rust
+use rlm_rs::embedding::cosine_similarity;
+
+let a = vec![1.0_f32, 0.0, 0.0];
+let b = vec![0.0_f32, 1.0, 0.0];
+let sim = cosine_similarity(&a, &b); // 0.0 (orthogonal)
+
+let identical = cosine_similarity(&a, &a); // 1.0
+```
+
+Returns a value in `[-1.0, 1.0]`. Returns `0.0` for vectors of different lengths or zero-magnitude vectors. For L2-normalized vectors, this is equivalent to the dot product.
+
+### `DEFAULT_DIMENSIONS`
+
+```rust
+use rlm_rs::embedding::DEFAULT_DIMENSIONS;
+// DEFAULT_DIMENSIONS = 1024  (BGE-M3 output size)
+```
+
+The authoritative vector dimension constant for the codebase. Use this wherever an embedding size is required (e.g., `HnswConfig`, `FallbackEmbedder`) to ensure consistency if the default model ever changes.
 
 ---
 
