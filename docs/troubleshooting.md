@@ -444,13 +444,13 @@ rlm-cli list
 2. **Check buffer has chunks:**
 
 ````bash
-rlm-cli chunk list --buffer docs
+rlm-cli chunk list docs
 ````
 
 3. **Check embeddings are generated:**
 
 ````bash
-rlm-cli chunk status --buffer docs
+rlm-cli chunk status
 # Should show: Embedded: X/X (100%)
 ````
 
@@ -525,7 +525,7 @@ rlm-cli load document.md --name docs --chunker semantic
 **Symptom:**
 
 ````bash
-rlm-cli chunk status --buffer docs
+rlm-cli chunk status
 # Embedded: 0/100 (0%)
 ````
 
@@ -534,7 +534,7 @@ rlm-cli chunk status --buffer docs
 1. **Generate embeddings manually:**
 
 ````bash
-rlm-cli chunk embed --buffer docs
+rlm-cli chunk embed docs
 ````
 
 2. **Check fastembed feature is enabled:**
@@ -571,7 +571,7 @@ curl -I https://huggingface.co/
 
 ````bash
 rm -rf ~/.cache/fastembed/
-rlm-cli chunk embed --buffer docs
+rlm-cli chunk embed docs
 ````
 
 3. **Use HTTP proxy if needed:**
@@ -579,7 +579,7 @@ rlm-cli chunk embed --buffer docs
 ````bash
 export HTTP_PROXY=http://proxy.example.com:8080
 export HTTPS_PROXY=http://proxy.example.com:8080
-rlm-cli chunk embed --buffer docs
+rlm-cli chunk embed docs
 ````
 
 4. **Download model manually:**
@@ -607,7 +607,7 @@ Buffer was embedded with a different model (e.g., all-MiniLM-L6-v2 vs BGE-M3)
 Re-embed with current model:
 
 ````bash
-rlm-cli chunk embed --buffer docs --force
+rlm-cli chunk embed docs --force
 ````
 
 ---

@@ -671,7 +671,7 @@ rlm-cli --format json chunk get 42 --metadata
 List all chunks for a buffer.
 
 ```bash
-rlm-cli chunk list <BUFFER>
+rlm-cli chunk list [OPTIONS] <BUFFER>
 ```
 
 **Arguments:**
@@ -679,13 +679,25 @@ rlm-cli chunk list <BUFFER>
 |----------|-------------|
 | `<BUFFER>` | Buffer ID or name |
 
+**Options:**
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-p, --preview` | | Show a content preview for each chunk |
+| `--preview-len <N>` | `100` | Preview length in characters |
+
 **Examples:**
 ```bash
 # List chunks for buffer
 rlm-cli chunk list docs
 
+# List with content preview
+rlm-cli chunk list docs --preview
+
+# List with longer preview
+rlm-cli chunk list docs --preview --preview-len 200
+
 # JSON output
-rlm-cli --format json chunk list docs
+rlm-cli --format json chunk list docs | jq '.[].id'
 ```
 
 ---
