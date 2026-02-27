@@ -195,9 +195,9 @@ Mitigations:
 | DEFAULT_CHUNK_SIZE = 3000 | `src/chunking/mod.rs` | - | changed from 2000 |
 | MAX_CHUNK_SIZE = 50000 | `src/chunking/mod.rs` | - | reduced from 250000 |
 
-**Summary:** In v1.1.2, the default chunk size was further revised to 3,000 characters (from
-240,000) and the maximum to 50,000. The original decision to use 2,000 bytes was superseded by
-this subsequent tuning. The CLI `--chunk-size` override remains available.
+**Summary:** In v1.1.2, the default chunk size was revised to 3,000 characters. The implementation
+had drifted from this ADR's 2,000-byte target to 240,000 before the v1.1.2 correction. The maximum
+was also reduced to 50,000 (from 250,000). The CLI `--chunk-size` override remains available.
 
 **Action Required:** None — the spirit of this ADR (reduce chunk size for better search
 precision) remains valid. The exact value (3,000) is documented in the CHANGELOG under v1.1.2.
