@@ -13,10 +13,10 @@ class RlmRs < Formula
   end
 
   test do
-    assert_match "rlm-rs #{version}", shell_output("#{bin}/rlm-rs --version")
+    assert_match "rlm-cli #{version}", shell_output("#{bin}/rlm-cli --version")
 
     # Test init command
-    system "#{bin}/rlm-rs", "init"
+    system "#{bin}/rlm-cli", "init"
     assert_predicate testpath/".rlm/rlm-state.db", :exist?
   end
 end

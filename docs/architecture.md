@@ -452,7 +452,7 @@ proptest! {
 
 ### Hybrid Search Architecture
 
-rlm-rs implements a hybrid search system combining multiple retrieval methods:
+rlm-cli implements a hybrid search system combining multiple retrieval methods:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐

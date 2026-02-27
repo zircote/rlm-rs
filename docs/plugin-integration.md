@@ -4,9 +4,9 @@ This guide explains how to integrate rlm-rs with AI coding assistants through pl
 
 ## Overview
 
-rlm-rs is designed as a **CLI-first tool** that AI assistants invoke via shell execution. This architecture enables:
+rlm-cli is designed as a **CLI-first tool** that AI assistants invoke via shell execution. This architecture enables:
 
-- **Universal Compatibility**: Any assistant with shell access can use rlm-rs
+- **Universal Compatibility**: Any assistant with shell access can use rlm-cli
 - **No Custom APIs**: Standard stdin/stdout/stderr communication
 - **JSON Output**: Machine-readable format for programmatic integration
 - **Stateless Commands**: Each invocation is independent (state lives in SQLite)
@@ -29,9 +29,9 @@ User-invocable shortcuts for common operations:
 
 | Command | Description | Maps To |
 |---------|-------------|---------|
-| `/rlm-load` | Load file into RLM | `rlm-rs load <file>` |
-| `/rlm-search` | Search loaded content | `rlm-rs search <query>` |
-| `/rlm-status` | Show RLM state | `rlm-rs status` |
+| `/rlm-load` | Load file into RLM | `rlm-cli load <file>` |
+| `/rlm-search` | Search loaded content | `rlm-cli search <query>` |
+| `/rlm-status` | Show RLM state | `rlm-cli status` |
 | `/rlm-analyze` | Full RLM analysis workflow | Orchestrated multi-step |
 
 **Example Skill Definition** (`.claude/skills/rlm-load.md`):
@@ -53,10 +53,10 @@ Load content into RLM for semantic search and chunk-based analysis.
 
 ## Workflow
 
-1. Check if rlm-rs is installed: `which rlm-rs`
-2. Initialize if needed: `rlm-rs init`
-3. Load the content: `rlm-rs load {{path}} --name {{name}} --chunker semantic`
-4. Report status: `rlm-rs status --format json`
+1. Check if rlm-rs is installed: `which rlm-cli`
+2. Initialize if needed: `rlm-cli init`
+3. Load the content: `rlm-cli load {{path}} --name {{name}} --chunker semantic`
+4. Report status: `rlm-cli status --format json`
 
 ## Output
 
@@ -83,7 +83,7 @@ You are a focused analysis agent processing individual chunks from large documen
 
 ## Instructions
 
-1. Retrieve the chunk: `rlm-rs chunk get <chunk_id>`
+1. Retrieve the chunk: `rlm-cli chunk get <chunk_id>`
 2. Analyze according to the prompt
 3. Return structured JSON findings:
 
@@ -154,17 +154,17 @@ Any AI assistant can integrate with rlm-rs using these patterns:
 
 ```bash
 # 1. Load content (one-time setup)
-rlm-rs load large-document.md --name docs
+rlm-cli load large-document.md --name docs
 
 # 2. Search for relevant chunks
-RESULTS=$(rlm-rs --format json search "your query" --top-k 5)
+RESULTS=$(rlm-cli --format json search "your query" --top-k 5)
 
 # 3. Extract chunk IDs
 CHUNK_IDS=$(echo "$RESULTS" | jq -r '.results[].chunk_id')
 
 # 4. Retrieve and process each chunk
 for ID in $CHUNK_IDS; do
-    CONTENT=$(rlm-rs chunk get $ID)
+    CONTENT=$(rlm-cli chunk get $ID)
     # Process $CONTENT...
 done
 ```
@@ -173,23 +173,23 @@ done
 
 ```bash
 # Find specific patterns
-rlm-rs grep docs "TODO|FIXME|HACK" --format json --max-matches 50
+rlm-cli grep docs "TODO|FIXME|HACK" --format json --max-matches 50
 
 # Get context around matches
-rlm-rs grep docs "error.*handling" --window 200
+rlm-cli grep docs "error.*handling" --window 200
 ```
 
 #### Pattern 3: Progressive Refinement
 
 ```bash
 # Broad search first
-rlm-rs search "authentication" --top-k 20
+rlm-cli search "authentication" --top-k 20
 
 # Narrow down
-rlm-rs search "JWT token validation" --top-k 5 --mode semantic
+rlm-cli search "JWT token validation" --top-k 5 --mode semantic
 
 # Exact match
-rlm-rs search "validateToken function" --mode bm25
+rlm-cli search "validateToken function" --mode bm25
 ```
 
 ### JSON Output Schema
@@ -251,8 +251,8 @@ All commands with `--format json` return structured data:
 Copilot can invoke rlm-rs through its terminal integration:
 
 ```
-@terminal rlm-rs load src/ --name code
-@terminal rlm-rs search "error handling"
+@terminal rlm-cli load src/ --name code
+@terminal rlm-cli search "error handling"
 ```
 
 ### Codex CLI
@@ -261,18 +261,18 @@ Codex can execute rlm-rs commands directly:
 
 ```bash
 codex "Load the documentation and find sections about API authentication"
-# Codex runs: rlm-rs load docs/ && rlm-rs search "API authentication"
+# Codex runs: rlm-cli load docs/ && rlm-rs search "API authentication"
 ```
 
 ### OpenCode / Aider
 
-These tools can use rlm-rs as an external helper:
+These tools can use rlm-cli as an external helper:
 
 ```bash
 # In .aider.conf.yml or similar
 tools:
   - name: rlm-search
-    command: rlm-rs --format json search "$QUERY"
+    command: rlm-cli --format json search "$QUERY"
 ```
 
 ### VS Code Extensions
@@ -296,7 +296,7 @@ interface SearchResponse {
 
 async function searchRLM(query: string): Promise<SearchResult[]> {
     // Using execFile (not exec) prevents shell injection
-    const { stdout } = await execFileAsync('rlm-rs', [
+    const { stdout } = await execFileAsync('rlm-cli', [
         '--format', 'json',
         'search', query
     ]);
@@ -312,7 +312,7 @@ async function searchRLM(query: string): Promise<SearchResult[]> {
 ### 1. Use Semantic Chunking for Code
 
 ```bash
-rlm-rs load src/ --chunker semantic --chunk-size 3000
+rlm-cli load src/ --chunker semantic --chunk-size 3000
 ```
 
 Semantic chunking respects function and class boundaries.
@@ -320,9 +320,9 @@ Semantic chunking respects function and class boundaries.
 ### 2. Name Buffers Meaningfully
 
 ```bash
-rlm-rs load src/auth/ --name auth-module
-rlm-rs load src/api/ --name api-handlers
-rlm-rs load docs/ --name documentation
+rlm-cli load src/auth/ --name auth-module
+rlm-cli load src/api/ --name api-handlers
+rlm-cli load docs/ --name documentation
 ```
 
 This makes search results more interpretable.
@@ -330,7 +330,7 @@ This makes search results more interpretable.
 ### 3. Use Hybrid Search by Default
 
 ```bash
-rlm-rs search "query" --mode hybrid
+rlm-cli search "query" --mode hybrid
 ```
 
 Hybrid combines semantic understanding with keyword matching.
@@ -353,10 +353,10 @@ Task(rlm-subcall, chunk 33)
 
 ```bash
 # After subcall analysis
-rlm-rs add-buffer auth-analysis "$(cat subcall-results.json)"
+rlm-cli add-buffer auth-analysis "$(cat subcall-results.json)"
 
 # Later retrieval
-rlm-rs show auth-analysis
+rlm-cli show auth-analysis
 ```
 
 ---
@@ -367,7 +367,7 @@ When integrating rlm-rs into AI workflows, proper error handling ensures gracefu
 
 ### Error Detection
 
-All rlm-rs commands return:
+All rlm-cli commands return:
 - **Exit code 0**: Success
 - **Exit code 1**: Error (details in stderr)
 
@@ -384,8 +384,8 @@ With JSON format, errors are structured:
 
 | Error Message | Cause | Recovery Strategy |
 |---------------|-------|-------------------|
-| `RLM not initialized` | Database not created | Run `rlm-rs init` |
-| `buffer not found: <name>` | Buffer doesn't exist | Run `rlm-rs list` to verify |
+| `RLM not initialized` | Database not created | Run `rlm-cli init` |
+| `buffer not found: <name>` | Buffer doesn't exist | Run `rlm-cli list` to verify |
 | `chunk not found: <id>` | Invalid chunk ID | Re-run search to get valid IDs |
 | `No results found` | Query too specific | Broaden query or lower threshold |
 | `embedding error` | Model loading issue | Check disk space, retry once |
@@ -395,7 +395,7 @@ With JSON format, errors are structured:
 
 ```bash
 # Robust error handling for AI assistants
-RESULT=$(rlm-rs --format json search "$QUERY" 2>&1)
+RESULT=$(rlm-cli --format json search "$QUERY" 2>&1)
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -ne 0 ]; then
@@ -404,13 +404,13 @@ if [ $EXIT_CODE -ne 0 ]; then
 
     case "$ERROR" in
         *"not initialized"*)
-            rlm-rs init
+            rlm-cli init
             # Retry original command
-            RESULT=$(rlm-rs --format json search "$QUERY")
+            RESULT=$(rlm-cli --format json search "$QUERY")
             ;;
         *"buffer not found"*)
             echo "Buffer not found. Available buffers:"
-            rlm-rs list
+            rlm-cli list
             ;;
         *"No results"*)
             echo "No results. Try broader query or: --threshold 0.1"
@@ -431,7 +431,7 @@ MAX_RETRIES=3
 RETRY_DELAY=1
 
 for i in $(seq 1 $MAX_RETRIES); do
-    RESULT=$(rlm-rs --format json chunk embed "$BUFFER" 2>&1)
+    RESULT=$(rlm-cli --format json chunk embed "$BUFFER" 2>&1)
     if [ $? -eq 0 ]; then
         break
     fi
@@ -450,27 +450,27 @@ Before complex workflows, verify prerequisites:
 ```bash
 # Check 1: rlm-rs is installed
 if ! command -v rlm-rs &> /dev/null; then
-    echo "rlm-rs not found. Install with: cargo install rlm-rs"
+    echo "rlm-rs not found. Install with: cargo install rlm-cli"
     exit 1
 fi
 
 # Check 2: Database is initialized
 if ! rlm-rs status &> /dev/null; then
-    rlm-rs init
+    rlm-cli init
 fi
 
 # Check 3: Content is loaded
-BUFFER_COUNT=$(rlm-rs --format json status | jq '.buffer_count')
+BUFFER_COUNT=$(rlm-cli --format json status | jq '.buffer_count')
 if [ "$BUFFER_COUNT" -eq 0 ]; then
     echo "No content loaded. Use: rlm-rs load <file>"
     exit 1
 fi
 
 # Check 4: Embeddings exist for semantic search
-EMBED_COUNT=$(rlm-rs --format json chunk status | jq '.embedded_chunks')
+EMBED_COUNT=$(rlm-cli --format json chunk status | jq '.embedded_chunks')
 if [ "$EMBED_COUNT" -eq 0 ]; then
     echo "No embeddings. Generating..."
-    rlm-rs chunk embed --all
+    rlm-cli chunk embed --all
 fi
 ```
 
@@ -480,11 +480,11 @@ When semantic search fails, fall back to BM25:
 
 ```bash
 # Try semantic first
-RESULT=$(rlm-rs --format json search "$QUERY" --mode semantic 2>&1)
+RESULT=$(rlm-cli --format json search "$QUERY" --mode semantic 2>&1)
 
 if echo "$RESULT" | jq -e '.error' > /dev/null 2>&1; then
     # Fall back to BM25 (keyword search, no embeddings required)
-    RESULT=$(rlm-rs --format json search "$QUERY" --mode bm25)
+    RESULT=$(rlm-cli --format json search "$QUERY" --mode bm25)
 fi
 ```
 
@@ -506,10 +506,10 @@ When reporting errors to users, provide actionable guidance:
 
 ```bash
 # Check installation
-which rlm-rs
+which rlm-cli
 
 # Install if missing
-cargo install rlm-rs
+cargo install rlm-cli
 # or
 brew install zircote/tap/rlm-rs
 ```
@@ -517,13 +517,13 @@ brew install zircote/tap/rlm-rs
 ### Database Not Initialized
 
 ```bash
-rlm-rs init
+rlm-cli init
 ```
 
 ### No Search Results
 
-1. Check if content is loaded: `rlm-rs list`
-2. Verify embeddings exist: `rlm-rs chunk status`
+1. Check if content is loaded: `rlm-cli list`
+2. Verify embeddings exist: `rlm-cli chunk status`
 3. Try broader query or lower threshold: `--threshold 0.1`
 
 ### JSON Parsing Errors
@@ -531,8 +531,8 @@ rlm-rs init
 Ensure you're using `--format json`:
 
 ```bash
-rlm-rs --format json search "query"  # Correct
-rlm-rs search "query" --format json  # Also correct
+rlm-cli --format json search "query"  # Correct
+rlm-cli search "query" --format json  # Also correct
 ```
 
 ---

@@ -34,7 +34,7 @@ Based on the RLM pattern from [arXiv:2512.24601](https://arxiv.org/abs/2512.2460
 ### Via Cargo (Recommended)
 
 ```bash
-cargo install rlm-rs
+cargo install rlm-cli
 ```
 
 ### Via Homebrew
@@ -56,25 +56,25 @@ make install
 
 ```bash
 # Initialize the database
-rlm-rs init
+rlm-cli init
 
 # Load a large document (auto-generates embeddings)
-rlm-rs load document.md --name docs --chunker semantic
+rlm-cli load document.md --name docs --chunker semantic
 
 # Search with hybrid semantic + BM25
-rlm-rs search "your query" --buffer docs --top-k 10
+rlm-cli search "your query" --buffer docs --top-k 10
 
 # Retrieve chunk by ID (pass-by-reference)
-rlm-rs chunk get 42
+rlm-cli chunk get 42
 
 # Check status
-rlm-rs status
+rlm-cli status
 
 # Regex search content
-rlm-rs grep docs "pattern" --max-matches 20
+rlm-cli grep docs "pattern" --max-matches 20
 
 # View content slice
-rlm-rs peek docs --start 0 --end 3000
+rlm-cli peek docs --start 0 --end 3000
 ```
 
 ## Commands
@@ -115,16 +115,16 @@ rlm-rs peek docs --start 0 --end 3000
 
 ```bash
 # Semantic chunking (default)
-rlm-rs load doc.md --chunker semantic
+rlm-cli load doc.md --chunker semantic
 
 # Code-aware chunking for source files
-rlm-rs load src/main.rs --chunker code
+rlm-cli load src/main.rs --chunker code
 
 # Fixed chunking with overlap
-rlm-rs load logs.txt --chunker fixed --chunk-size 150000 --overlap 1000
+rlm-cli load logs.txt --chunker fixed --chunk-size 150000 --overlap 1000
 
 # Parallel chunking for speed
-rlm-rs load huge.txt --chunker parallel --chunk-size 100000
+rlm-cli load huge.txt --chunker parallel --chunk-size 100000
 ```
 
 ### Supported Languages (Code Chunker)
@@ -133,13 +133,13 @@ Rust, Python, JavaScript, TypeScript, Go, Java, C/C++, Ruby, PHP
 
 ## Claude Code Integration
 
-rlm-rs is designed to work with the [rlm-rs Claude Code plugin](https://github.com/zircote/rlm-plugin), implementing the RLM architecture:
+rlm-cli is designed to work with the [rlm-rs Claude Code plugin](https://github.com/zircote/rlm-plugin), implementing the RLM architecture:
 
 | RLM Concept | Implementation |
 |-------------|----------------|
 | Root LLM | Main Claude Code conversation (Opus/Sonnet) |
 | Sub-LLM | `rlm-subcall` agent (Haiku) |
-| External Environment | `rlm-rs` CLI + SQLite |
+| External Environment | `rlm-cli` CLI + SQLite |
 
 ## Development
 

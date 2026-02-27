@@ -14,7 +14,7 @@ You analyze individual text chunks and extract structured findings. You are part
 </role>
 
 <instructions>
-1. Retrieve the chunk content using: rlm-rs chunk get <chunk_id>
+1. Retrieve the chunk content using: rlm-cli chunk get <chunk_id>
 2. Analyze the content according to the user's analysis prompt
 3. Return findings in the structured JSON format below
 4. Be concise - you're one of many parallel analysts
@@ -55,7 +55,7 @@ Return a JSON object with this structure:
 
 ```bash
 # Orchestrator finds relevant chunks
-CHUNKS=$(rlm-rs --format json search "authentication" --top-k 10 | jq -r '.results[].chunk_id')
+CHUNKS=$(rlm-cli --format json search "authentication" --top-k 10 | jq -r '.results[].chunk_id')
 
 # Launch analyst subagent for each chunk
 for CHUNK_ID in $CHUNKS; do

@@ -39,7 +39,7 @@ Binary files are not supported.
 
 Three options:
 
-1. **Cargo** (recommended): `cargo install rlm-rs`
+1. **Cargo** (recommended): `cargo install rlm-cli`
 2. **Homebrew**: `brew install zircote/tap/rlm-rs`
 3. **From source**: See [Getting Started](getting-started.md)
 
@@ -58,13 +58,13 @@ You can override this with the `RLM_DB_PATH` environment variable:
 
 ````bash
 export RLM_DB_PATH=/path/to/custom/rlm-state.db
-rlm-rs init
+rlm-cli init
 ````
 
 ### How do I reset the database?
 
 ````bash
-rlm-rs reset
+rlm-cli reset
 ````
 
 **Warning**: This deletes all buffers, chunks, and state. Cannot be undone.
@@ -88,9 +88,9 @@ rm -rf .rlm/
 
 **Example**:
 ````bash
-rlm-rs load docs.md --chunker semantic
-rlm-rs load src/main.rs --chunker code
-rlm-rs load app.log --chunker fixed --chunk-size 150000
+rlm-cli load docs.md --chunker semantic
+rlm-cli load src/main.rs --chunker code
+rlm-cli load app.log --chunker fixed --chunk-size 150000
 ````
 
 ### How do I choose chunk size?
@@ -105,7 +105,7 @@ rlm-rs load app.log --chunker fixed --chunk-size 150000
 **Recommendation**: Start with defaults, adjust based on your content.
 
 ````bash
-rlm-rs load file.txt --chunk-size 30000 --overlap 1000
+rlm-cli load file.txt --chunk-size 30000 --overlap 1000
 ````
 
 ### What's the difference between semantic and BM25 search?
@@ -119,13 +119,13 @@ rlm-rs load file.txt --chunk-size 30000 --overlap 1000
 **Example**:
 ````bash
 # Semantic search
-rlm-rs search "installation process" --mode semantic
+rlm-cli search "installation process" --mode semantic
 
 # Keyword search
-rlm-rs search "error" --mode bm25
+rlm-cli search "error" --mode bm25
 
 # Hybrid (default)
-rlm-rs search "database connection error" --mode hybrid
+rlm-cli search "database connection error" --mode hybrid
 ````
 
 ### How do I search across multiple buffers?
@@ -133,18 +133,18 @@ rlm-rs search "database connection error" --mode hybrid
 Omit the `--buffer` flag to search all buffers:
 
 ````bash
-rlm-rs search "error handling"
+rlm-cli search "error handling"
 ````
 
 Or specify multiple buffers:
 
 ````bash
 # Load files
-rlm-rs load src/lib.rs --name lib
-rlm-rs load src/main.rs --name main
+rlm-cli load src/lib.rs --name lib
+rlm-cli load src/main.rs --name main
 
 # Search both
-rlm-rs search "parse" --buffer lib --buffer main
+rlm-cli search "parse" --buffer lib --buffer main
 ````
 
 **Note**: Current implementation searches one buffer at a time when `--buffer` is specified.
@@ -154,7 +154,7 @@ rlm-rs search "parse" --buffer lib --buffer main
 Use `update-buffer`:
 
 ````bash
-rlm-rs update-buffer readme --file README-updated.md
+rlm-cli update-buffer readme --file README-updated.md
 ````
 
 This re-chunks and re-embeds the content while preserving the buffer ID.
@@ -165,13 +165,13 @@ Yes:
 
 ````bash
 # Export all buffers to JSON
-rlm-rs export-buffers > buffers.json
+rlm-cli export-buffers > buffers.json
 
 # Export individual buffer content
-rlm-rs show readme > readme-content.txt
+rlm-cli show readme > readme-content.txt
 
 # Export chunks to individual files
-rlm-rs write-chunks readme --output-dir ./chunks/
+rlm-cli write-chunks readme --output-dir ./chunks/
 ````
 
 ## Performance Questions
@@ -206,7 +206,7 @@ Not directly, but you can:
 Use parallel chunking:
 
 ````bash
-rlm-rs load huge-log.txt --chunker parallel --chunk-size 100000
+rlm-cli load huge-log.txt --chunker parallel --chunk-size 100000
 ````
 
 **Tips**:
@@ -221,7 +221,7 @@ rlm-rs load huge-log.txt --chunker parallel --chunk-size 100000
 You need to initialize the database first:
 
 ````bash
-rlm-rs init
+rlm-cli init
 ````
 
 This creates `.rlm/rlm-state.db`.
@@ -243,26 +243,26 @@ This creates `.rlm/rlm-state.db`.
 **Solution**: List buffers to verify:
 
 ````bash
-rlm-rs list
+rlm-cli list
 ````
 
 ### Search returns no results
 
 **Possible causes**:
-1. **No embeddings**: Check `rlm-rs chunk status`
-2. **Wrong buffer**: Verify with `rlm-rs list`
+1. **No embeddings**: Check `rlm-cli chunk status`
+2. **Wrong buffer**: Verify with `rlm-cli list`
 3. **Query mismatch**: Try different search mode or keywords
 
 **Debug**:
 ````bash
 # Check embedding status
-rlm-rs chunk status
+rlm-cli chunk status
 
 # Try keyword search
-rlm-rs search "your query" --mode bm25
+rlm-cli search "your query" --mode bm25
 
 # Try broader query
-rlm-rs search "error" --top-k 20
+rlm-cli search "error" --top-k 20
 ````
 
 ### High memory usage
@@ -274,7 +274,7 @@ rlm-rs search "error" --top-k 20
 
 **Solutions**:
 - Use smaller `--chunk-size`
-- Delete unused buffers: `rlm-rs delete <buffer>`
+- Delete unused buffers: `rlm-cli delete <buffer>`
 - Restart CLI to release memory maps
 
 ### Slow search performance
@@ -310,10 +310,10 @@ Absolutely:
 
 ````bash
 #!/bin/bash
-rlm-rs init
-rlm-rs load document.md --name doc --format json > load-result.json
+rlm-cli init
+rlm-cli load document.md --name doc --format json > load-result.json
 chunk_id=$(jq '.chunks[0].id' load-result.json)
-rlm-rs chunk get "$chunk_id"
+rlm-cli chunk get "$chunk_id"
 ````
 
 Use `--format json` for machine-readable output.

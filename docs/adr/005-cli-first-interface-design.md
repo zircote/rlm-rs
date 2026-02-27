@@ -33,7 +33,7 @@ Accepted
 
 ### Background and Problem Statement
 
-rlm-rs needs a user interface for:
+rlm-cli needs a user interface for:
 - Loading and managing buffers
 - Chunking content with various strategies
 - Searching for relevant context

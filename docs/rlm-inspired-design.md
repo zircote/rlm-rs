@@ -25,7 +25,7 @@ The Recursive Language Model (RLM) pattern, introduced in [arXiv:2512.24601](htt
 
 ### Inspiration vs. Implementation
 
-rlm-rs takes the RLM paper's theoretical foundation and translates it into a **practical CLI tool** optimized for AI-assisted coding workflows. Key extensions include:
+rlm-cli takes the RLM paper's theoretical foundation and translates it into a **practical CLI tool** optimized for AI-assisted coding workflows. Key extensions include:
 
 | RLM Paper Concept | rlm-rs Implementation | Extension |
 |-------------------|----------------------|-----------|
@@ -43,11 +43,11 @@ Instead of copying chunk content into prompts, rlm-rs uses **chunk IDs** that su
 
 ```bash
 # Root agent searches for relevant chunks
-rlm-rs search "authentication errors" --format json | jq '.results[].chunk_id'
+rlm-cli search "authentication errors" --format json | jq '.results[].chunk_id'
 # Returns: 42, 17, 89
 
 # Subagent retrieves specific chunk by ID
-rlm-rs chunk get 42
+rlm-cli chunk get 42
 # Returns: Full chunk content
 ```
 
@@ -76,13 +76,13 @@ The paper treats chunking as a preprocessing step. rlm-rs makes it a first-class
 
 ```bash
 # Semantic chunking preserves natural boundaries
-rlm-rs load README.md --chunker semantic
+rlm-cli load README.md --chunker semantic
 
 # Fixed chunking for uniform sizes
-rlm-rs load server.log --chunker fixed --chunk-size 50000
+rlm-cli load server.log --chunker fixed --chunk-size 50000
 
 # Parallel chunking for speed on large files
-rlm-rs load huge-dump.txt --chunker parallel
+rlm-cli load huge-dump.txt --chunker parallel
 ```
 
 #### 4. Auto-Embedding on Load
@@ -90,7 +90,7 @@ rlm-rs load huge-dump.txt --chunker parallel
 Embeddings are generated automatically during document ingestion:
 
 ```bash
-rlm-rs load document.md --name docs
+rlm-cli load document.md --name docs
 # Output: Loaded document.md as 'docs' (15 chunks, embeddings generated)
 ```
 
@@ -119,14 +119,14 @@ This eliminates a separate embedding step and ensures search is always available
 
 ### 1. CLI-First Interface
 
-rlm-rs is designed as a **command-line tool** that any AI assistant can invoke via shell:
+rlm-cli is designed as a **command-line tool** that any AI assistant can invoke via shell:
 
 ```bash
 # Any AI assistant can run these commands
-rlm-rs init
-rlm-rs load document.md --name docs
-rlm-rs search "error handling" --format json
-rlm-rs chunk get 42
+rlm-cli init
+rlm-cli load document.md --name docs
+rlm-cli search "error handling" --format json
+rlm-cli chunk get 42
 ```
 
 This means rlm-rs works with:
@@ -141,7 +141,7 @@ This means rlm-rs works with:
 All commands support `--format json` for programmatic consumption:
 
 ```bash
-rlm-rs --format json search "authentication" --top-k 5
+rlm-cli --format json search "authentication" --top-k 5
 ```
 
 ```json
@@ -158,7 +158,7 @@ rlm-rs --format json search "authentication" --top-k 5
 
 ### 3. Zero External Dependencies at Runtime
 
-rlm-rs is a **single static binary** with embedded:
+rlm-cli is a **single static binary** with embedded:
 - Embedding model (All-MiniLM-L6-v2 via fastembed)
 - SQLite (via rusqlite)
 - Full-text search (FTS5)

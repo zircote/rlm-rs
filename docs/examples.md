@@ -1,6 +1,6 @@
 # Examples
 
-This guide provides practical examples for common `rlm-rs` workflows.
+This guide provides practical examples for common `rlm-cli` workflows.
 
 ## Table of Contents
 
@@ -20,13 +20,13 @@ This guide provides practical examples for common `rlm-rs` workflows.
 
 ````bash
 # Initialize database
-rlm-rs init
+rlm-cli init
 
 # Load a markdown file with semantic chunking
-rlm-rs load README.md --name readme --chunker semantic
+rlm-cli load README.md --name readme --chunker semantic
 
 # Check status
-rlm-rs status
+rlm-cli status
 
 # Output:
 # Database: .rlm/rlm-state.db (256 KB)
@@ -39,21 +39,21 @@ rlm-rs status
 
 ````bash
 # Hybrid search (semantic + BM25)
-rlm-rs search "installation instructions" --buffer readme --mode hybrid --top-k 5
+rlm-cli search "installation instructions" --buffer readme --mode hybrid --top-k 5
 
 # Output:
 # Chunk ID: 12 | Score: 0.89 | Buffer: readme
 # ## Installation
 # 
 # ### Via Cargo (Recommended)
-# cargo install rlm-rs
+# cargo install rlm-cli
 # ...
 
 # Retrieve specific chunk by ID
-rlm-rs chunk get 12
+rlm-cli chunk get 12
 
 # Regex search for specific patterns
-rlm-rs grep readme "cargo install" --context 2
+rlm-cli grep readme "cargo install" --context 2
 ````
 
 ---
@@ -66,7 +66,7 @@ Best for: Markdown, documentation, prose
 
 ````bash
 # Load with semantic boundaries (headings, paragraphs)
-rlm-rs load docs/architecture.md \
+rlm-cli load docs/architecture.md \
   --name architecture \
   --chunker semantic \
   --chunk-size 150000 \
@@ -90,7 +90,7 @@ Best for: Source code (Rust, Python, JavaScript, etc.)
 
 ````bash
 # Load Rust source with code-aware chunking
-rlm-rs load src/main.rs \
+rlm-cli load src/main.rs \
   --name main-source \
   --chunker code
 
@@ -123,7 +123,7 @@ Best for: Log files, plain text, structured data
 
 ````bash
 # Fixed-size chunks with overlap
-rlm-rs load logs/server.log \
+rlm-cli load logs/server.log \
   --name server-logs \
   --chunker fixed \
   --chunk-size 100000 \
@@ -139,7 +139,7 @@ Best for: Large files (>10MB), multi-core systems
 
 ````bash
 # Parallel chunking for speed
-rlm-rs load dataset.txt \
+rlm-cli load dataset.txt \
   --name large-dataset \
   --chunker parallel \
   --chunk-size 200000
@@ -166,7 +166,7 @@ Combines semantic similarity and keyword matching using RRF (Reciprocal Rank Fus
 
 ````bash
 # Hybrid search with RRF fusion
-rlm-rs search "error handling patterns" \
+rlm-cli search "error handling patterns" \
   --buffer main-source \
   --mode hybrid \
   --top-k 10
@@ -188,7 +188,7 @@ Pure vector similarity search:
 
 ````bash
 # Semantic search only
-rlm-rs search "how to configure the database" \
+rlm-cli search "how to configure the database" \
   --buffer architecture \
   --mode semantic \
   --top-k 5
@@ -203,7 +203,7 @@ Keyword-based full-text search:
 
 ````bash
 # BM25 keyword search
-rlm-rs search "SQLite initialization" \
+rlm-cli search "SQLite initialization" \
   --buffer architecture \
   --mode bm25 \
   --top-k 5
@@ -216,13 +216,13 @@ rlm-rs search "SQLite initialization" \
 
 ````bash
 # Search specific buffer
-rlm-rs search "async" --buffer main-source
+rlm-cli search "async" --buffer main-source
 
 # List all chunks in a buffer
-rlm-rs chunk list --buffer main-source
+rlm-cli chunk list --buffer main-source
 
 # Get embedding status
-rlm-rs chunk status --buffer main-source
+rlm-cli chunk status --buffer main-source
 ````
 
 ---
@@ -237,15 +237,15 @@ rlm-rs chunk status --buffer main-source
 
 ````bash
 # Initialize rlm-rs
-rlm-rs init
+rlm-cli init
 
 # Load each source directory
-rlm-rs load src/ --name source-code --chunker code
-rlm-rs load tests/ --name test-code --chunker code
-rlm-rs load docs/ --name documentation --chunker semantic
+rlm-cli load src/ --name source-code --chunker code
+rlm-cli load tests/ --name test-code --chunker code
+rlm-cli load docs/ --name documentation --chunker semantic
 
 # Check status
-rlm-rs status
+rlm-cli status
 # Output: 3 buffers, 542 chunks, 100% embedded
 ````
 
@@ -253,21 +253,21 @@ rlm-rs status
 
 ````bash
 # Find error handling patterns
-rlm-rs search "error handling" \
+rlm-cli search "error handling" \
   --buffer source-code \
   --mode hybrid \
   --top-k 10 \
   --format json > results.json
 
 # Get specific chunks by ID
-rlm-rs chunk get 127 --format json
+rlm-cli chunk get 127 --format json
 ````
 
 **Step 3:** Dispatch to subagents
 
 ````bash
 # Split chunks into batches for parallel analysis
-rlm-rs dispatch source-code \
+rlm-cli dispatch source-code \
   --batch-size 5 \
   --task "Analyze error handling patterns" \
   --format json > batches.json
@@ -279,7 +279,7 @@ rlm-rs dispatch source-code \
 
 ````bash
 # After subagent analysis, combine findings
-rlm-rs aggregate \
+rlm-cli aggregate \
   --findings findings1.json findings2.json findings3.json \
   --output summary.json
 ````
@@ -339,7 +339,7 @@ EOF
 
 ````bash
 # 1. Orchestrator: Create analysis batches
-rlm-rs dispatch codebase \
+rlm-cli dispatch codebase \
   --batch-size 10 \
   --task "Find security vulnerabilities" \
   --output batches.json
@@ -358,7 +358,7 @@ for batch in $(jq -r '.[] | @base64' batches.json); do
   
   # Retrieve chunks
   for chunk_id in $CHUNK_IDS; do
-    rlm-rs chunk get $chunk_id >> "batch_${BATCH_ID}_content.txt"
+    rlm-cli chunk get $chunk_id >> "batch_${BATCH_ID}_content.txt"
   done
   
   # Analyze with sub-LLM (Haiku)
@@ -366,7 +366,7 @@ for batch in $(jq -r '.[] | @base64' batches.json); do
 done
 
 # 3. Synthesizer: Aggregate findings
-rlm-rs aggregate findings_*.json --output final_report.json
+rlm-cli aggregate findings_*.json --output final_report.json
 ````
 
 ### Prompt Templates
@@ -505,16 +505,16 @@ Update buffer content and re-embed only changed chunks:
 
 ````bash
 # Initial load
-rlm-rs load document.md --name docs
+rlm-cli load document.md --name docs
 
 # Modify document.md externally
 # ...
 
 # Update buffer (only re-embeds changed chunks)
-rlm-rs update-buffer docs document-updated.md
+rlm-cli update-buffer docs document-updated.md
 
 # Force re-embedding all chunks
-rlm-rs chunk embed --buffer docs --force
+rlm-cli chunk embed --buffer docs --force
 ````
 
 ### Multi-Buffer Workflows
@@ -523,18 +523,18 @@ Work with multiple document sources:
 
 ````bash
 # Load multiple sources
-rlm-rs load api-docs.md --name api-docs --chunker semantic
-rlm-rs load source-code/ --name source --chunker code
-rlm-rs load tests/ --name tests --chunker code
+rlm-cli load api-docs.md --name api-docs --chunker semantic
+rlm-cli load source-code/ --name source --chunker code
+rlm-cli load tests/ --name tests --chunker code
 
 # Search across all buffers
-rlm-rs search "authentication" --top-k 10
+rlm-cli search "authentication" --top-k 10
 
 # Search specific buffer
-rlm-rs search "authentication" --buffer api-docs
+rlm-cli search "authentication" --buffer api-docs
 
 # Export all buffers
-rlm-rs export-buffers --output all-buffers.json
+rlm-cli export-buffers --output all-buffers.json
 ````
 
 ### Context Variables
@@ -543,24 +543,24 @@ Use variables for dynamic context management:
 
 ````bash
 # Set context variable
-rlm-rs var set current_task "security-audit"
+rlm-cli var set current_task "security-audit"
 
 # Get variable
-rlm-rs var get current_task
+rlm-cli var get current_task
 # Output: security-audit
 
 # List all variables
-rlm-rs var list
+rlm-cli var list
 
 # Set global variable (persistent across sessions)
-rlm-rs global set project_name "rlm-rs"
+rlm-cli global set project_name "rlm-rs"
 ````
 
 ### Regex Search with Context
 
 ````bash
 # Search with context lines
-rlm-rs grep source-code "fn main" \
+rlm-cli grep source-code "fn main" \
   --context 5 \
   --max-matches 10
 
@@ -577,14 +577,14 @@ rlm-rs grep source-code "fn main" \
 # ----
 
 # Case-insensitive search
-rlm-rs grep docs "error" --ignore-case
+rlm-cli grep docs "error" --ignore-case
 ````
 
 ### JSON Output for Scripting
 
 ````bash
 # JSON output for programmatic use
-rlm-rs search "async" --buffer source --format json | jq '.results[0]'
+rlm-cli search "async" --buffer source --format json | jq '.results[0]'
 
 # Output:
 # {
@@ -596,7 +596,7 @@ rlm-rs search "async" --buffer source --format json | jq '.results[0]'
 # }
 
 # Chain with other tools
-rlm-rs chunk list --buffer source --format json \
+rlm-cli chunk list --buffer source --format json \
   | jq '.chunks | length'
 # Output: 127
 ````
@@ -605,20 +605,20 @@ rlm-rs chunk list --buffer source --format json \
 
 ````bash
 # View first 3000 characters
-rlm-rs peek docs --start 0 --end 3000
+rlm-cli peek docs --start 0 --end 3000
 
 # View middle section
-rlm-rs peek docs --start 10000 --end 15000
+rlm-cli peek docs --start 10000 --end 15000
 
 # View from offset to end
-rlm-rs peek docs --start 50000
+rlm-cli peek docs --start 50000
 ````
 
 ### Write Chunks to Files
 
 ````bash
 # Export each chunk to separate files
-rlm-rs write-chunks source-code --output-dir ./chunks/
+rlm-cli write-chunks source-code --output-dir ./chunks/
 
 # Result:
 # chunks/
@@ -636,12 +636,12 @@ rlm-rs write-chunks source-code --output-dir ./chunks/
 
 ````bash
 # For large files, use parallel chunking
-rlm-rs load large-file.txt \
+rlm-cli load large-file.txt \
   --chunker parallel \
   --chunk-size 100000
 
 # Reduce chunk size for faster embedding
-rlm-rs load docs.md \
+rlm-cli load docs.md \
   --chunker semantic \
   --chunk-size 50000  # Smaller chunks = faster embedding
 ````
@@ -650,26 +650,26 @@ rlm-rs load docs.md \
 
 ````bash
 # Use smaller top-k for faster results
-rlm-rs search "query" --top-k 5  # vs --top-k 100
+rlm-cli search "query" --top-k 5  # vs --top-k 100
 
 # Use BM25-only for faster keyword search
-rlm-rs search "exact term" --mode bm25
+rlm-cli search "exact term" --mode bm25
 
 # Use semantic-only for concept search
-rlm-rs search "general idea" --mode semantic
+rlm-cli search "general idea" --mode semantic
 ````
 
 ### Memory Management
 
 ````bash
 # For very large files, increase chunk size to reduce memory
-rlm-rs load huge-file.txt \
+rlm-cli load huge-file.txt \
   --chunker parallel \
   --chunk-size 500000  # Larger chunks = fewer in memory
 
 # Export and delete old buffers
-rlm-rs export-buffers --output backup.json
-rlm-rs delete old-buffer
+rlm-cli export-buffers --output backup.json
+rlm-cli delete old-buffer
 ````
 
 ---
@@ -678,32 +678,32 @@ rlm-rs delete old-buffer
 
 ### Slow Embedding Generation
 
-**Symptom:** `rlm-rs load` takes minutes to complete
+**Symptom:** `rlm-cli load` takes minutes to complete
 
 **Solutions:**
 ````bash
 # 1. Use parallel chunking
-rlm-rs load file.txt --chunker parallel
+rlm-cli load file.txt --chunker parallel
 
 # 2. Increase chunk size (fewer chunks to embed)
-rlm-rs load file.txt --chunk-size 200000
+rlm-cli load file.txt --chunk-size 200000
 
 # 3. Check CPU usage (should be 100% across all cores)
-top -p $(pgrep rlm-rs)
+top -p $(pgrep rlm-cli)
 ````
 
 ### Out of Memory Errors
 
-**Symptom:** `rlm-rs search` crashes with OOM
+**Symptom:** `rlm-cli search` crashes with OOM
 
 **Solutions:**
 ````bash
 # 1. Reduce top-k
-rlm-rs search "query" --top-k 5  # Instead of 100
+rlm-cli search "query" --top-k 5  # Instead of 100
 
 # 2. Delete unused buffers
-rlm-rs list
-rlm-rs delete unused-buffer
+rlm-cli list
+rlm-cli delete unused-buffer
 
 # 3. Rebuild without HNSW
 cargo build --release --features fastembed-embeddings
@@ -716,13 +716,13 @@ cargo build --release --features fastembed-embeddings
 **Solutions:**
 ````bash
 # 1. Check embedding status
-rlm-rs chunk status --buffer docs
+rlm-cli chunk status --buffer docs
 
 # 2. Generate embeddings if missing
-rlm-rs chunk embed --buffer docs
+rlm-cli chunk embed --buffer docs
 
 # 3. Force re-embedding
-rlm-rs chunk embed --buffer docs --force
+rlm-cli chunk embed --buffer docs --force
 ````
 
 ---

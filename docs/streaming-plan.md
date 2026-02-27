@@ -53,9 +53,9 @@ pub trait StreamingChunker: Send + Sync {
 
 **CLI Usage**:
 ```bash
-cat large_file.txt | rlm-rs load --stdin --name "piped"
-rlm-rs search "query" --stream | head -10
-tail -f /var/log/app.log | rlm-rs load --stdin --incremental
+cat large_file.txt | rlm-cli load --stdin --name "piped"
+rlm-cli search "query" --stream | head -10
+tail -f /var/log/app.log | rlm-cli load --stdin --incremental
 ```
 
 ---
@@ -148,7 +148,7 @@ pub enum InputSource {
 
 ```
 ┌──────┐    ┌─────────────────────────────────────────┐
-│ cat  │───>│ rlm-rs load --stdin                     │
+│ cat  │───>│ rlm-cli load --stdin                     │
 │      │    │   stdin → BufReader → Chunker → Storage │
 └──────┘    └─────────────────────────────────────────┘
 ```
@@ -163,7 +163,7 @@ Key points:
 
 ```
 ┌─────────────────────┐    ┌──────┐
-│ rlm-rs search       │───>│ head │
+│ rlm-cli search       │───>│ head │
 │   write(line)       │    │      │
 │   if EPIPE: break   │    └──────┘
 └─────────────────────┘

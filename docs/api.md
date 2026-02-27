@@ -1,10 +1,10 @@
 # RLM-RS API Reference
 
-Rust library API documentation for `rlm-rs`.
+Rust library API documentation for `rlm-cli`.
 
 ## Overview
 
-`rlm-rs` can be used as both a CLI tool and a Rust library. This document covers the library API for programmatic integration.
+`rlm-cli` can be used as both a CLI tool and a Rust library. This document covers the library API for programmatic integration.
 
 ## Quick Start
 
@@ -12,7 +12,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rlm-rs = "1.2"
+rlm-cli = "1.2"
 ```
 
 Basic usage:
@@ -506,10 +506,10 @@ Enable full search capabilities with features:
 ```toml
 [dependencies]
 # Default: includes fastembed embeddings
-rlm-rs = "1.2"
+rlm-cli = "1.2"
 
 # Full search with HNSW index
-rlm-rs = { version = "1.2", features = ["full-search"] }
+rlm-cli = { version = "1.2", features = ["full-search"] }
 ```
 
 #### Generating Embeddings
@@ -798,4 +798,4 @@ fn process_document(path: &str) -> Result<()> {
 - [README.md](../README.md) - Project overview
 - [Architecture](architecture.md) - Internal architecture
 - [CLI Reference](cli-reference.md) - Command-line interface
-- [docs.rs/rlm-rs](https://docs.rs/rlm-rs) - Auto-generated rustdoc
+- [docs.rs/rlm-cli](https://docs.rs/rlm-cli) - Auto-generated rustdoc

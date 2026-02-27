@@ -23,7 +23,7 @@ Think of it as a "smart pagination system" that lets AI assistants navigate huge
 ### Option 1: Cargo (Recommended)
 
 ````bash
-cargo install rlm-rs
+cargo install rlm-cli
 ````
 
 ### Option 2: Homebrew (macOS/Linux)
@@ -44,7 +44,7 @@ make install
 ### Verify Installation
 
 ````bash
-rlm-rs --version
+rlm-cli --version
 # Output: rlm-cli 1.2.4
 ````
 
@@ -55,7 +55,7 @@ rlm-rs --version
 RLM-RS stores state in a local SQLite database:
 
 ````bash
-rlm-rs init
+rlm-cli init
 ````
 
 This creates `.rlm/rlm-state.db` in your current directory.
@@ -65,7 +65,7 @@ This creates `.rlm/rlm-state.db` in your current directory.
 Let's load a markdown file with automatic chunking and embedding:
 
 ````bash
-rlm-rs load README.md --name readme --chunker semantic
+rlm-cli load README.md --name readme --chunker semantic
 ````
 
 This:
@@ -76,7 +76,7 @@ This:
 ### Step 3: Check Status
 
 ````bash
-rlm-rs status
+rlm-cli status
 ````
 
 Output:
@@ -92,7 +92,7 @@ Embedded chunks: 47 (100%)
 Use hybrid search (semantic + BM25):
 
 ````bash
-rlm-rs search "installation instructions" --buffer readme --top-k 3
+rlm-cli search "installation instructions" --buffer readme --top-k 3
 ````
 
 Output:
@@ -101,7 +101,7 @@ Chunk ID: 12 | Score: 0.89 | Buffer: readme
 ## Installation
 
 ### Via Cargo (Recommended)
-cargo install rlm-rs
+cargo install rlm-cli
 ...
 ````
 
@@ -110,7 +110,7 @@ cargo install rlm-rs
 Once you know a chunk ID, you can retrieve it directly:
 
 ````bash
-rlm-rs chunk get 12
+rlm-cli chunk get 12
 ````
 
 This is the "pass-by-reference" pattern - instead of copying text, you pass chunk IDs.
@@ -129,7 +129,7 @@ RLM-RS supports multiple chunking strategies:
 ### Example: Code-Aware Chunking
 
 ````bash
-rlm-rs load src/main.rs --name maincode --chunker code
+rlm-cli load src/main.rs --name maincode --chunker code
 ````
 
 This splits Rust code at function boundaries, keeping functions intact.
@@ -137,7 +137,7 @@ This splits Rust code at function boundaries, keeping functions intact.
 ### Example: Fixed Chunking with Overlap
 
 ````bash
-rlm-rs load large-log.txt --chunker fixed --chunk-size 150000 --overlap 1000
+rlm-cli load large-log.txt --chunker fixed --chunk-size 150000 --overlap 1000
 ````
 
 ## Common Workflows
@@ -146,39 +146,39 @@ rlm-rs load large-log.txt --chunker fixed --chunk-size 150000 --overlap 1000
 
 ````bash
 # Load multiple files
-rlm-rs load src/lib.rs --name lib --chunker code
-rlm-rs load src/main.rs --name main --chunker code
-rlm-rs load tests/integration.rs --name tests --chunker code
+rlm-cli load src/lib.rs --name lib --chunker code
+rlm-cli load src/main.rs --name main --chunker code
+rlm-cli load tests/integration.rs --name tests --chunker code
 
 # Search across all buffers
-rlm-rs search "error handling" --top-k 10
+rlm-cli search "error handling" --top-k 10
 
 # View specific chunks
-rlm-rs chunk get 42
+rlm-cli chunk get 42
 ````
 
 ### Workflow 2: Processing Large Documents
 
 ````bash
 # Load with semantic chunking
-rlm-rs load whitepaper.md --name paper --chunker semantic
+rlm-cli load whitepaper.md --name paper --chunker semantic
 
 # Use regex search for specific terms
-rlm-rs grep paper "performance|benchmark" --max-matches 20
+rlm-cli grep paper "performance|benchmark" --max-matches 20
 
 # Peek at specific sections
-rlm-rs peek paper --start 0 --end 5000
+rlm-cli peek paper --start 0 --end 5000
 ````
 
 ### Workflow 3: Parallel Subagent Processing
 
 ````bash
 # Dispatch chunks to multiple AI agents
-rlm-rs dispatch --buffer paper --batch-size 5
+rlm-cli dispatch --buffer paper --batch-size 5
 
 # (After subagent analysis)
 # Aggregate findings
-rlm-rs aggregate
+rlm-cli aggregate
 ````
 
 ## Integration with Claude Code
@@ -188,7 +188,7 @@ RLM-RS is designed to work with the [rlm-rs Claude Code plugin](https://github.c
 The RLM architecture:
 - **Root LLM**: Main Claude conversation (Opus/Sonnet)
 - **Sub-LLM**: Analyst agents (Haiku) via `rlm-subcall`
-- **External Environment**: `rlm-rs` CLI + SQLite
+- **External Environment**: `rlm-cli` CLI + SQLite
 
 See [Plugin Integration](plugin-integration.md) for details.
 
@@ -198,7 +198,7 @@ See [Plugin Integration](plugin-integration.md) for details.
 2. **Use Descriptive Buffer Names**: `--name docs` instead of auto-generated names
 3. **Leverage Hybrid Search**: Combines semantic understanding with keyword precision
 4. **Pass by Reference**: Share chunk IDs instead of copying large text blocks
-5. **Clean Up**: Use `rlm-rs delete <buffer>` or `rlm-rs reset` to manage state
+5. **Clean Up**: Use `rlm-cli delete <buffer>` or `rlm-cli reset` to manage state
 
 ## Next Steps
 

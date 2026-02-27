@@ -1,6 +1,6 @@
 # Feature Flags
 
-`rlm-rs` uses Cargo features to provide optional functionality and reduce binary size for specific use cases.
+`rlm-cli` uses Cargo features to provide optional functionality and reduce binary size for specific use cases.
 
 ## Available Features
 
@@ -104,7 +104,7 @@ Semantic search commands will fall back to BM25-only:
 
 ````bash
 # This command requires embeddings
-rlm-rs search "query" --mode semantic
+rlm-cli search "query" --mode semantic
 
 # Error: FastEmbed not available, falling back to BM25
 # Suggestion: Rebuild with --features fastembed-embeddings
@@ -117,7 +117,7 @@ The CLI will automatically use hash-based pseudo-embeddings for compatibility, b
 Vector search uses exact SQLite-based cosine similarity:
 
 ````bash
-rlm-rs search "query" --mode hybrid --top-k 100
+rlm-cli search "query" --mode hybrid --top-k 100
 # Uses exact search - slower but accurate
 ````
 
@@ -173,7 +173,7 @@ CMD ["rlm-cli"]
 When first running with embeddings enabled:
 
 ````bash
-rlm-rs load document.md --name docs
+rlm-cli load document.md --name docs
 
 # Downloads BGE-M3 model (~1GB) to ~/.cache/fastembed/
 # Progress: Downloading model... 100%
@@ -189,7 +189,7 @@ rlm-rs load document.md --name docs
 Check which features are compiled:
 
 ````bash
-rlm-rs --version
+rlm-cli --version
 
 # Output:
 # rlm-cli 1.2.4
