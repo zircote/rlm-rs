@@ -529,11 +529,14 @@ vector embeddings. These are direct methods on the struct and are not part of th
 |--------|---------|-------------|
 | `search_fts(query, limit)` | `Result<Vec<(i64, f64)>>` | FTS5 BM25 full-text search over stored chunk content. Returns `(chunk_id, score)` pairs sorted by relevance (higher score = better match). The query supports FTS5 syntax; multi-word queries are automatically expanded to OR clauses. |
 
-````rust
+````rust,ignore
 use rlm_rs::SqliteStorage;
 
 let mut storage = SqliteStorage::in_memory()?;
 storage.init()?;
+
+let chunk_id: i64 = 1;
+let buffer_id: i64 = 1;
 
 // Store a single embedding
 storage.store_embedding(chunk_id, &[0.1, 0.2, 0.3], Some("bge-m3"))?;

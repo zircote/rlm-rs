@@ -808,7 +808,7 @@ impl SqliteStorage {
 
     /// Performs FTS5 BM25 full-text search.
     ///
-    /// Returns chunk IDs and their BM25 scores (lower is better match).
+    /// Returns chunk IDs and their BM25 scores (higher is better match).
     ///
     /// # Arguments
     ///

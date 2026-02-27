@@ -36,7 +36,7 @@ pub use error::{Error, Result};
 pub use core::{Buffer, BufferMetadata, Chunk, ChunkMetadata, Context, ContextValue};
 
 // Re-export storage types
-pub use storage::{DEFAULT_DB_PATH, SqliteStorage, Storage};
+pub use storage::{DEFAULT_DB_PATH, EmbeddingStats, SqliteStorage, Storage};
 
 // Re-export chunking types
 pub use chunking::{Chunker, FixedChunker, SemanticChunker, available_strategies, create_chunker};
