@@ -561,8 +561,8 @@ When the `usearch-hnsw` feature is enabled:
 #[cfg(feature = "usearch-hnsw")]
 use rlm_rs::search::{HnswIndex, HnswConfig};
 
-let config = HnswConfig::default();
-let mut index = HnswIndex::new(1024, config)?;  // 1024 dimensions
+let config = HnswConfig::default(); // defaults to 1024 dimensions (BGE-M3)
+let mut index = HnswIndex::new(&config)?;
 
 // Add vectors
 index.add(chunk_id, &embedding)?;

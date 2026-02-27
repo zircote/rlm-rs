@@ -159,7 +159,7 @@ rlm-cli --format json search "authentication" --top-k 5
 ### 3. Zero External Dependencies at Runtime
 
 rlm-cli is a **single static binary** with embedded:
-- Embedding model (All-MiniLM-L6-v2 via fastembed)
+- Embedding model (BGE-M3 via fastembed, 1024 dimensions)
 - SQLite (via rusqlite)
 - Full-text search (FTS5)
 
