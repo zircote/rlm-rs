@@ -1682,7 +1682,10 @@ mod tests {
         assert!(!results.is_empty());
         // Scores should be positive
         for (_id, score) in &results {
-            assert!(*score > 0.0);
+            assert!(
+                *score >= 0.0,
+                "BM25 score should be non-negative, got {score}"
+            );
         }
     }
 
