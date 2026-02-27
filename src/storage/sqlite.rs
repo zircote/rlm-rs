@@ -648,7 +648,8 @@ impl SqliteStorage {
         let now = Self::now();
 
         // Serialize f32 array to bytes (little-endian)
-        let bytes: Vec<u8> = embedding.iter().flat_map(|f| f.to_le_bytes()).collect();
+        let mut bytes = Vec::with_capacity(embedding.len() * 4);
+        bytes.extend(embedding.iter().flat_map(|f| f.to_le_bytes()));
 
         self.conn
             .execute(
@@ -774,7 +775,8 @@ impl SqliteStorage {
                 .map_err(StorageError::from)?;
 
             for (chunk_id, embedding) in embeddings {
-                let bytes: Vec<u8> = embedding.iter().flat_map(|f| f.to_le_bytes()).collect();
+                let mut bytes = Vec::with_capacity(embedding.len() * 4);
+                bytes.extend(embedding.iter().flat_map(|f| f.to_le_bytes()));
 
                 stmt.execute(params![
                     chunk_id,

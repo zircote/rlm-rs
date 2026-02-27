@@ -18,6 +18,7 @@ pub use rrf::{RrfConfig, reciprocal_rank_fusion, weighted_rrf};
 use crate::embedding::{Embedder, cosine_similarity};
 use crate::error::Result;
 use crate::storage::{SqliteStorage, Storage};
+use rayon::prelude::*;
 
 /// Default similarity threshold for semantic search.
 pub const DEFAULT_SIMILARITY_THRESHOLD: f32 = 0.3;
@@ -281,9 +282,9 @@ fn semantic_search(
         return Ok(Vec::new());
     }
 
-    // Calculate similarities
+    // Calculate similarities in parallel (rayon data parallelism)
     let mut similarities: Vec<(i64, f32)> = all_embeddings
-        .iter()
+        .par_iter()
         .map(|(chunk_id, embedding)| {
             let sim = cosine_similarity(&query_embedding, embedding);
             (*chunk_id, sim)
