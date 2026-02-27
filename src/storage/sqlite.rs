@@ -649,7 +649,9 @@ impl SqliteStorage {
 
         // Serialize f32 array to bytes (little-endian)
         let mut bytes = Vec::with_capacity(embedding.len() * 4);
-        bytes.extend(embedding.iter().flat_map(|f| f.to_le_bytes()));
+        for f in embedding {
+            bytes.extend_from_slice(&f.to_le_bytes());
+        }
 
         self.conn
             .execute(
