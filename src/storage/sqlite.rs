@@ -1861,4 +1861,60 @@ mod tests {
         let map = storage.get_chunks_by_ids(&[99999]).unwrap();
         assert!(map.is_empty());
     }
+
+    #[test]
+    fn test_fts_and_embedding_pipeline() {
+        // Integration: index chunks, store embeddings, then verify that FTS
+        // hits match chunks that also have embeddings.
+        let mut storage = setup();
+        let buffer = Buffer::from_content("machine learning and neural networks".to_string());
+        let buffer_id = storage.add_buffer(&buffer).unwrap();
+
+        let chunks = vec![
+            Chunk::new(
+                buffer_id,
+                "machine learning algorithms".to_string(),
+                0..27,
+                0,
+            ),
+            Chunk::new(
+                buffer_id,
+                "neural networks architecture".to_string(),
+                28..56,
+                1,
+            ),
+        ];
+        storage.add_chunks(buffer_id, &chunks).unwrap();
+
+        // Store embeddings for both chunks
+        let chunk_ids: Vec<i64> = storage
+            .get_chunks(buffer_id)
+            .unwrap()
+            .into_iter()
+            .map(|c| c.id.unwrap())
+            .collect();
+        assert_eq!(chunk_ids.len(), 2);
+
+        for (i, &chunk_id) in chunk_ids.iter().enumerate() {
+            let embedding = vec![i as f32 * 0.1 + 0.1, i as f32 * 0.2 + 0.2];
+            storage
+                .store_embedding(chunk_id, &embedding, Some("test-model"))
+                .unwrap();
+        }
+
+        // FTS search should find the relevant chunk
+        let fts_results = storage.search_fts("machine", 10).unwrap();
+        assert!(!fts_results.is_empty());
+
+        // Every FTS result should also have an embedding stored
+        for (chunk_id, _score) in &fts_results {
+            assert!(
+                storage.has_embedding(*chunk_id).unwrap(),
+                "FTS result chunk {chunk_id} should have an embedding"
+            );
+        }
+
+        // Verify embedding count matches what was stored
+        assert_eq!(storage.embedding_count().unwrap(), 2);
+    }
 }

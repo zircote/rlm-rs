@@ -693,4 +693,121 @@ export async function fetchData() {
         let chunker = CodeChunker::new();
         assert!(!chunker.description().is_empty());
     }
+
+    #[test]
+    fn test_chunk_go_code() {
+        let chunker = CodeChunker::with_size(200);
+        let code = r#"package main
+
+func main() {
+    fmt.Println("Hello")
+}
+
+func helper(x int) int {
+    return x * 2
+}
+
+type Point struct {
+    X, Y int
+}
+
+type Shape interface {
+    Area() float64
+}
+"#;
+
+        let meta = ChunkMetadata::with_size(200).content_type("go");
+        let chunks = chunker.chunk(1, code, Some(&meta)).unwrap();
+
+        assert!(!chunks.is_empty());
+        for chunk in &chunks {
+            assert!(!chunk.content.trim().is_empty());
+        }
+    }
+
+    #[test]
+    fn test_chunk_java_code() {
+        let chunker = CodeChunker::with_size(300);
+        let code = r#"
+public class Calculator {
+    private int value;
+
+    public Calculator(int initial) {
+        this.value = initial;
+    }
+
+    public int add(int n) {
+        return value + n;
+    }
+
+    public static int multiply(int a, int b) {
+        return a * b;
+    }
+}
+
+public interface Printable {
+    void print();
+}
+"#;
+
+        let meta = ChunkMetadata::with_size(300).content_type("java");
+        let chunks = chunker.chunk(1, code, Some(&meta)).unwrap();
+
+        assert!(!chunks.is_empty());
+    }
+
+    #[test]
+    fn test_detect_language_typescript() {
+        let meta = ChunkMetadata::new().content_type("ts");
+        let lang = CodeChunker::detect_language(Some(&meta));
+        assert_eq!(lang, Language::TypeScript);
+
+        let meta_tsx = ChunkMetadata::new().content_type("tsx");
+        let lang_tsx = CodeChunker::detect_language(Some(&meta_tsx));
+        assert_eq!(lang_tsx, Language::TypeScript);
+    }
+
+    #[test]
+    fn test_detect_language_go() {
+        let meta = ChunkMetadata::new().content_type("go");
+        let lang = CodeChunker::detect_language(Some(&meta));
+        assert_eq!(lang, Language::Go);
+    }
+
+    #[test]
+    fn test_boundary_patterns_go() {
+        let code = "func Greet(name string) string {";
+        let re = BoundaryPattern::GoFunc.regex();
+        assert!(re.is_match(code));
+
+        let type_code = "type Node struct {";
+        let re_type = BoundaryPattern::GoType.regex();
+        assert!(re_type.is_match(type_code));
+    }
+
+    #[test]
+    fn test_boundary_patterns_java() {
+        let class_code = "public class MyClass {";
+        let re = BoundaryPattern::JavaClass.regex();
+        assert!(re.is_match(class_code));
+
+        let iface_code = "public interface Runnable {";
+        let re_iface = BoundaryPattern::JavaInterface.regex();
+        assert!(re_iface.is_match(iface_code));
+    }
+
+    #[test]
+    fn test_code_chunker_with_overlap() {
+        let chunker = CodeChunker::with_size_and_overlap(100, 20);
+        // 15 repetitions of a 10-char function produces ~150 chars total,
+        // which forces multiple chunks at chunk_size=100 with overlap=20.
+        let code = "fn a() {}\n".repeat(15);
+        let meta = ChunkMetadata::with_size(100).content_type("rs");
+        let chunks = chunker.chunk(1, &code, Some(&meta)).unwrap();
+
+        assert!(!chunks.is_empty());
+        for chunk in &chunks {
+            assert!(!chunk.content.trim().is_empty());
+        }
+    }
 }

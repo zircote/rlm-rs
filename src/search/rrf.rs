@@ -230,4 +230,62 @@ mod tests {
         let config = RrfConfig::default();
         assert_eq!(config.k, 60);
     }
+
+    #[test]
+    fn test_rrf_no_lists() {
+        // Empty slice of ranked lists should return no results
+        let config = RrfConfig::new(60);
+        let results = reciprocal_rank_fusion(&[], &config);
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_weighted_rrf_empty_list() {
+        // weighted_rrf with a single empty list should return no results
+        let empty: Vec<i64> = vec![];
+        let config = RrfConfig::new(60);
+        let results = weighted_rrf(&[(&empty, 1.0)], &config);
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_weighted_rrf_zero_weight() {
+        // A zero-weight list still contributes 0 to every score
+        let list = vec![1_i64, 2, 3];
+        let config = RrfConfig::new(60);
+        let results = weighted_rrf(&[(&list, 0.0)], &config);
+        // Items are present but all scores are 0
+        assert_eq!(results.len(), 3);
+        for (_id, score) in &results {
+            assert!(score.abs() < f64::EPSILON);
+        }
+    }
+
+    #[test]
+    fn test_weighted_rrf_score_formula() {
+        // Verify weighted score: weight / (k + rank_1_based)
+        let list = vec![42_i64];
+        let config = RrfConfig::new(60);
+        let results = weighted_rrf(&[(&list, 2.0)], &config);
+        let expected = 2.0 / 61.0; // weight=2, k=60, rank=1
+        assert!((results[0].1 - expected).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_rrf_extreme_k_value() {
+        // k = 1 (smallest meaningful k) must give the largest score spread
+        // k = 1_000_000 (very high) must produce tiny but valid scores
+        let list = vec![1_i64, 2];
+
+        let config_min = RrfConfig::new(1);
+        let res_min = reciprocal_rank_fusion(&[&list], &config_min);
+        assert_eq!(res_min.len(), 2);
+        assert!(res_min[0].1 > res_min[1].1);
+
+        let config_large = RrfConfig::new(1_000_000);
+        let res_large = reciprocal_rank_fusion(&[&list], &config_large);
+        assert_eq!(res_large.len(), 2);
+        // All scores are tiny but item 1 still ranks higher than item 2
+        assert!(res_large[0].1 > res_large[1].1);
+    }
 }

@@ -651,4 +651,43 @@ mod tests {
             assert!(text.is_char_boundary(chunk.byte_range.end));
         }
     }
+
+    #[test]
+    fn test_semantic_chunker_pure_cjk_text() {
+        // Pure CJK text has no Latin word or sentence boundaries; the chunker
+        // must not panic and must produce valid UTF-8 chunks.
+        let chunker = SemanticChunker::with_size(30).min_chunk_size(5);
+        let text =
+            "本日は晴天なり。東京タワーは美しい。富士山は日本で最も高い山です。春の花が咲いている。";
+
+        let result = chunker.chunk(1, text, None);
+        assert!(result.is_ok(), "Should not panic on pure CJK input");
+
+        let chunks = result.unwrap();
+        assert!(!chunks.is_empty());
+        for chunk in &chunks {
+            assert!(text.is_char_boundary(chunk.byte_range.start));
+            assert!(text.is_char_boundary(chunk.byte_range.end));
+            assert_eq!(&text[chunk.byte_range.clone()], chunk.content);
+        }
+    }
+
+    #[test]
+    fn test_semantic_chunker_arabic_text() {
+        // Arabic (RTL) text — must not panic and byte boundaries must be valid.
+        let chunker = SemanticChunker::with_size(40).min_chunk_size(5);
+        let text =
+            "مرحبا بالعالم. هذا نص عربي. الجملة الثالثة هنا. والرابعة في النهاية.";
+
+        let result = chunker.chunk(1, text, None);
+        assert!(result.is_ok(), "Should not panic on Arabic (RTL) input");
+
+        let chunks = result.unwrap();
+        assert!(!chunks.is_empty());
+        for chunk in &chunks {
+            assert!(text.is_char_boundary(chunk.byte_range.start));
+            assert!(text.is_char_boundary(chunk.byte_range.end));
+            assert_eq!(&text[chunk.byte_range.clone()], chunk.content);
+        }
+    }
 }
