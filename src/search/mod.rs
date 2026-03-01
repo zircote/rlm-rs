@@ -117,8 +117,16 @@ pub fn populate_previews(
     results: &mut [SearchResult],
     preview_len: usize,
 ) -> Result<()> {
+    if results.is_empty() {
+        return Ok(());
+    }
+
+    // Batch-fetch all chunks in a single query instead of N individual lookups.
+    let ids: Vec<i64> = results.iter().map(|r| r.chunk_id).collect();
+    let chunk_map = storage.get_chunks_by_ids(&ids)?;
+
     for result in results.iter_mut() {
-        if let Some(chunk) = storage.get_chunk(result.chunk_id)? {
+        if let Some(chunk) = chunk_map.get(&result.chunk_id) {
             let content = &chunk.content;
             let preview = if content.len() <= preview_len {
                 content.clone()
