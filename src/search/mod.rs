@@ -107,7 +107,7 @@ impl SearchResult {
 ///
 /// * `storage` - The storage backend.
 /// * `results` - Search results to populate.
-/// * `preview_len` - Maximum preview length in characters.
+/// * `preview_len` - Maximum preview length in bytes.
 ///
 /// # Errors
 ///
@@ -1099,7 +1099,8 @@ mod tests {
             content_preview: None,
         }];
 
-        // preview_len=7 falls in the middle of '日' (which starts at byte 6)
+        // preview_len=7 bytes falls inside '日' (which occupies bytes 6-8),
+        // so the implementation must back up to the nearest valid UTF-8 boundary.
         populate_previews(&storage, &mut results, 7).unwrap();
 
         let preview = results[0].content_preview.as_ref().unwrap();
