@@ -903,6 +903,32 @@ impl SqliteStorage {
         Ok(count as usize)
     }
 
+    /// Returns `true` if every chunk in the buffer has an embedding (or the buffer has no chunks).
+    ///
+    /// Uses a single `NOT EXISTS` query instead of per-chunk lookups, making it O(1) in terms
+    /// of round-trips regardless of how many chunks the buffer contains.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the query fails.
+    pub fn all_chunks_have_embeddings(&self, buffer_id: i64) -> Result<bool> {
+        let result: i64 = self
+            .conn
+            .query_row(
+                r"
+                SELECT NOT EXISTS (
+                    SELECT 1 FROM chunks c
+                    LEFT JOIN chunk_embeddings e ON e.chunk_id = c.id
+                    WHERE c.buffer_id = ? AND e.chunk_id IS NULL
+                )
+                ",
+                params![buffer_id],
+                |row| row.get(0),
+            )
+            .map_err(StorageError::from)?;
+        Ok(result != 0)
+    }
+
     /// Checks if a chunk has an embedding.
     ///
     /// # Errors
