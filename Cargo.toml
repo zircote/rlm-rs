@@ -53,7 +53,7 @@ fastembed = { version = "5", optional = true, default-features = false, features
 # usearch HNSW vector search (optional - BM25-only fallback if not available)
 # Pinned to <2.24: v2.24.0 has a MAP_FAILED POSIX constant that breaks Windows compilation
 # See: https://github.com/unum-cloud/USearch/issues/715
-usearch = { version = ">=2.23, <2.24", optional = true }
+usearch = { version = ">=2.23, <2.25", optional = true }
 
 [dev-dependencies]
 # Testing
