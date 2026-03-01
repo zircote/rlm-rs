@@ -1117,6 +1117,9 @@ mod tests {
         // The prefix before "..." must be exactly "hello " — truncated at the
         // char boundary before '日', not mid-way through its bytes.
         let body = preview.trim_end_matches("...");
-        assert_eq!(body, "hello ", "Expected truncation at char boundary, got: {body:?}");
+        assert_eq!(
+            body, "hello ",
+            "Expected truncation at char boundary, got: {body:?}"
+        );
     }
 }
