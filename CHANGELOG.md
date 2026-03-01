@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Performance
 
+- **Search**: Batch chunk lookup in `populate_previews()` using `get_chunks_by_ids()`
+  - Replaces N individual `get_chunk()` calls with a single `WHERE id IN (…)` query
+  - Reduces database round-trips from O(n) to O(1) when rendering content previews
 - **Search**: Parallelize cosine similarity scan in `semantic_search()` using `rayon::par_iter()`
   - Linear scan over stored embeddings now distributes across all available CPU cores
   - Near-linear speedup for large embedding collections (>1 000 chunks)

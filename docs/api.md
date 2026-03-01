@@ -518,6 +518,12 @@ vector embeddings. These are direct methods on the struct and are not part of th
 | `get_embedding_model_counts(buffer_id)` | `Result<Vec<(Option<String>, i64)>>` | Count embeddings per model for a buffer. `None` entries represent un-labelled embeddings. |
 | `get_embedding_stats(buffer_id)` | `Result<EmbeddingStats>` | Summarise total vs embedded chunk counts and per-model breakdown for a buffer. |
 
+**Batch chunk retrieval**
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `get_chunks_by_ids(ids)` | `Result<HashMap<i64, Chunk>>` | Fetch multiple chunks by ID in a single `WHERE id IN (…)` query. Returns a map of chunk ID to `Chunk`. Missing IDs are silently omitted. Used internally by `populate_previews`. |
+
 **Full-text search**
 
 | Method | Returns | Description |
@@ -692,7 +698,9 @@ pub struct SearchResult {
 
 #### `populate_previews`
 
-Fetches chunk content and fills `content_preview` on each `SearchResult`.
+Fetches chunk content and fills `content_preview` on each `SearchResult`. All chunks are
+retrieved in a **single batched query** (`WHERE id IN (…)`) regardless of the result-set
+size — O(1) database round-trips instead of O(n).
 
 ```rust
 use rlm_rs::search::{hybrid_search, populate_previews, DEFAULT_PREVIEW_LEN};
