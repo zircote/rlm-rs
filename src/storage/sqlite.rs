@@ -1895,10 +1895,10 @@ mod tests {
             .collect();
         assert_eq!(chunk_ids.len(), 2);
 
-        for (i, &chunk_id) in chunk_ids.iter().enumerate() {
-            let embedding = vec![i as f32 * 0.1 + 0.1, i as f32 * 0.2 + 0.2];
+        let embeddings: &[&[f32]] = &[&[0.1, 0.2], &[0.2, 0.4]];
+        for (&chunk_id, embedding) in chunk_ids.iter().zip(embeddings) {
             storage
-                .store_embedding(chunk_id, &embedding, Some("test-model"))
+                .store_embedding(chunk_id, embedding, Some("test-model"))
                 .unwrap();
         }
 

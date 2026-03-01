@@ -728,7 +728,7 @@ type Shape interface {
     #[test]
     fn test_chunk_java_code() {
         let chunker = CodeChunker::with_size(300);
-        let code = r#"
+        let code = "
 public class Calculator {
     private int value;
 
@@ -748,7 +748,7 @@ public class Calculator {
 public interface Printable {
     void print();
 }
-"#;
+";
 
         let meta = ChunkMetadata::with_size(300).content_type("java");
         let chunks = chunker.chunk(1, code, Some(&meta)).unwrap();
