@@ -1104,10 +1104,11 @@ mod tests {
         populate_previews(&storage, &mut results, 7).unwrap();
 
         let preview = results[0].content_preview.as_ref().unwrap();
-        // Must be valid UTF-8 (no panic) and end with ellipsis
+        // Must end with ellipsis because the content is longer than preview_len
         assert!(preview.ends_with("..."), "Expected ellipsis in: {preview}");
-        // The prefix before "..." must be valid UTF-8
+        // The prefix before "..." must be exactly "hello " — truncated at the
+        // char boundary before '日', not mid-way through its bytes.
         let body = preview.trim_end_matches("...");
-        assert!(std::str::from_utf8(body.as_bytes()).is_ok());
+        assert_eq!(body, "hello ", "Expected truncation at char boundary, got: {body:?}");
     }
 }
