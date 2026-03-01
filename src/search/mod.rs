@@ -406,28 +406,14 @@ pub fn embed_buffer_chunks(
 
 /// Checks if a buffer has all chunks embedded.
 ///
+/// Uses a single SQL query (`NOT EXISTS`) instead of per-chunk lookups, reducing database
+/// round-trips from O(n) to O(1) for a buffer with n chunks.
+///
 /// # Errors
 ///
 /// Returns an error if the check fails.
 pub fn buffer_fully_embedded(storage: &SqliteStorage, buffer_id: i64) -> Result<bool> {
-    let chunk_count = storage.chunk_count(buffer_id)?;
-    if chunk_count == 0 {
-        return Ok(true);
-    }
-
-    // Count embeddings for this buffer's chunks
-    let chunks = storage.get_chunks(buffer_id)?;
-    let mut embedded_count = 0;
-
-    for chunk in &chunks {
-        if let Some(id) = chunk.id
-            && storage.has_embedding(id)?
-        {
-            embedded_count += 1;
-        }
-    }
-
-    Ok(embedded_count == chunk_count)
+    storage.all_chunks_have_embeddings(buffer_id)
 }
 
 /// Checks if existing embeddings were created with a different model.
