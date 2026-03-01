@@ -107,7 +107,7 @@ impl SearchResult {
 ///
 /// * `storage` - The storage backend.
 /// * `results` - Search results to populate.
-/// * `preview_len` - Maximum preview length in characters.
+/// * `preview_len` - Maximum preview length in bytes.
 ///
 /// # Errors
 ///
@@ -927,5 +927,199 @@ mod tests {
         };
         assert!(result.had_changes());
         assert!((result.completion_percentage() - 100.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_completion_percentage_zero_chunks() {
+        let result = IncrementalEmbedResult {
+            embedded_count: 0,
+            skipped_count: 0,
+            replaced_count: 0,
+            total_chunks: 0,
+            model_name: "test".to_string(),
+        };
+        // Zero-chunk buffer is considered 100% complete
+        assert!((result.completion_percentage() - 100.0).abs() < f64::EPSILON);
+        assert!(!result.had_changes());
+    }
+
+    #[test]
+    fn test_completion_percentage_partial() {
+        let result = IncrementalEmbedResult {
+            embedded_count: 1,
+            skipped_count: 1,
+            replaced_count: 0,
+            total_chunks: 4,
+            model_name: "test".to_string(),
+        };
+        assert!((result.completion_percentage() - 50.0).abs() < f64::EPSILON);
+        assert!(result.had_changes());
+    }
+
+    #[test]
+    fn test_had_changes_replaced_only() {
+        let result = IncrementalEmbedResult {
+            embedded_count: 0,
+            skipped_count: 2,
+            replaced_count: 1,
+            total_chunks: 3,
+            model_name: "test".to_string(),
+        };
+        assert!(result.had_changes());
+    }
+
+    #[test]
+    fn test_check_model_mismatch_no_embeddings() {
+        let mut storage = setup_storage();
+        let buffer = crate::core::Buffer::from_named("x.txt".to_string(), "hi".to_string());
+        let buffer_id = storage.add_buffer(&buffer).unwrap();
+
+        // No embeddings → no mismatch
+        let result = check_model_mismatch(&storage, buffer_id, "model-a").unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_check_model_mismatch_same_model() {
+        let mut storage = setup_storage_with_chunks();
+        let embedder = FallbackEmbedder::new(DEFAULT_DIMENSIONS);
+
+        embed_buffer_chunks(&mut storage, &embedder, 1).unwrap();
+
+        // Same model → no mismatch
+        let result = check_model_mismatch(&storage, 1, embedder.model_name()).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_check_model_mismatch_different_model() {
+        let mut storage = setup_storage_with_chunks();
+        let embedder = FallbackEmbedder::new(DEFAULT_DIMENSIONS);
+
+        embed_buffer_chunks(&mut storage, &embedder, 1).unwrap();
+
+        // Ask with a different model name → returns the existing model
+        let result = check_model_mismatch(&storage, 1, "some-other-model").unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), embedder.model_name());
+    }
+
+    #[test]
+    fn test_get_embedding_model_info_no_embeddings() {
+        let mut storage = setup_storage();
+        let buffer = crate::core::Buffer::from_named("x.txt".to_string(), "hi".to_string());
+        let buffer_id = storage.add_buffer(&buffer).unwrap();
+
+        let info = get_embedding_model_info(&storage, buffer_id).unwrap();
+        assert_eq!(info.total_embeddings, 0);
+        assert!(info.models.is_empty());
+        assert!(!info.has_mixed_models);
+    }
+
+    #[test]
+    fn test_get_embedding_model_info_single_model() {
+        let mut storage = setup_storage_with_chunks();
+        let embedder = FallbackEmbedder::new(DEFAULT_DIMENSIONS);
+
+        embed_buffer_chunks(&mut storage, &embedder, 1).unwrap();
+
+        let info = get_embedding_model_info(&storage, 1).unwrap();
+        assert_eq!(info.total_embeddings, 3);
+        assert!(!info.has_mixed_models);
+    }
+
+    #[test]
+    fn test_populate_previews_short_content() {
+        let storage = setup_storage_with_chunks();
+
+        // Get a result with a known chunk_id
+        let results_raw = search_bm25(&storage, "fox", 1).unwrap();
+        assert!(!results_raw.is_empty());
+
+        let mut results = results_raw;
+        populate_previews(&storage, &mut results, 200).unwrap();
+
+        // Content is shorter than preview_len → no ellipsis
+        let preview = results[0].content_preview.as_ref().unwrap();
+        assert!(!preview.ends_with("..."));
+        assert!(!preview.is_empty());
+    }
+
+    #[test]
+    fn test_populate_previews_truncates_long_content() {
+        let mut storage = setup_storage();
+        let buffer = crate::core::Buffer::from_named("long.txt".to_string(), String::new());
+        let buffer_id = storage.add_buffer(&buffer).unwrap();
+
+        // Create a chunk with long content
+        let long_content = "word ".repeat(100); // 500 chars
+        let chunk =
+            crate::core::Chunk::new(buffer_id, long_content.clone(), 0..long_content.len(), 0);
+        storage.add_chunks(buffer_id, &[chunk]).unwrap();
+
+        let chunks = storage.get_chunks(buffer_id).unwrap();
+        let chunk_id = chunks[0].id.unwrap();
+
+        // Build a synthetic SearchResult pointing at this chunk
+        let mut results = vec![SearchResult {
+            chunk_id,
+            buffer_id,
+            index: 0,
+            score: 1.0,
+            semantic_score: None,
+            bm25_score: None,
+            content_preview: None,
+        }];
+
+        populate_previews(&storage, &mut results, 20).unwrap();
+
+        let preview = results[0].content_preview.as_ref().unwrap();
+        assert!(
+            preview.ends_with("..."),
+            "Expected ellipsis, got: {preview}"
+        );
+        // Should be no longer than preview_len + "..."
+        assert!(preview.len() <= 23);
+    }
+
+    #[test]
+    fn test_populate_previews_utf8_boundary() {
+        let mut storage = setup_storage();
+        let buffer = crate::core::Buffer::from_named("utf8.txt".to_string(), String::new());
+        let buffer_id = storage.add_buffer(&buffer).unwrap();
+
+        // Content where a naive byte truncation would split a multi-byte char
+        // '日' is 3 bytes; place it so it straddles the preview boundary
+        let content = "hello \u{65E5}\u{672C}\u{8A9E}"; // "hello 日本語"
+        let chunk = crate::core::Chunk::new(buffer_id, content.to_string(), 0..content.len(), 0);
+        storage.add_chunks(buffer_id, &[chunk]).unwrap();
+
+        let chunks = storage.get_chunks(buffer_id).unwrap();
+        let chunk_id = chunks[0].id.unwrap();
+
+        let mut results = vec![SearchResult {
+            chunk_id,
+            buffer_id,
+            index: 0,
+            score: 1.0,
+            semantic_score: None,
+            bm25_score: None,
+            content_preview: None,
+        }];
+
+        // preview_len=7 bytes falls inside '日' (which occupies bytes 6-8),
+        // so the implementation must back up to the nearest valid UTF-8 boundary.
+        populate_previews(&storage, &mut results, 7).unwrap();
+
+        let preview = results[0].content_preview.as_ref().unwrap();
+        // Must end with ellipsis because the content is longer than preview_len
+        assert!(preview.ends_with("..."), "Expected ellipsis in: {preview}");
+        // The prefix before "..." must be exactly "hello " — truncated at the
+        // char boundary before '日', not mid-way through its bytes.
+        let body = preview.trim_end_matches("...");
+        assert_eq!(
+            body, "hello ",
+            "Expected truncation at char boundary, got: {body:?}"
+        );
     }
 }

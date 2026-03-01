@@ -473,6 +473,24 @@ let mut bytes = Vec::with_capacity(embedding.len() * 4);
 bytes.extend(embedding.iter().flat_map(|f| f.to_le_bytes()));
 ```
 
+### Single-Query Buffer Embedding Check
+
+`buffer_fully_embedded()` and its underlying `SqliteStorage::all_chunks_have_embeddings()` check
+whether every chunk in a buffer has a stored embedding using one `NOT EXISTS` query, regardless of
+chunk count:
+
+```sql
+SELECT NOT EXISTS (
+    SELECT 1 FROM chunks c
+    LEFT JOIN chunk_embeddings e ON e.chunk_id = c.id
+    WHERE c.buffer_id = ? AND e.chunk_id IS NULL
+)
+```
+
+This replaces the previous pattern of issuing one `has_embedding()` round-trip per chunk, reducing
+database traffic from O(n) queries to O(1) for a buffer with n chunks. The impact is most visible
+when checking large documents that have been split into hundreds of chunks.
+
 ## Testing Strategy
 
 ### Unit Tests
