@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Storage**: Pre-size embedding byte buffers in `store_embedding()` and `store_embeddings_batch()`
   - `Vec::with_capacity(embedding.len() * 4)` avoids repeated heap reallocations per embedding
   - Reduces heap churn when indexing large batches of chunks
+- **Storage**: Replace O(n) per-chunk embedding checks with a single `NOT EXISTS` query
+  - `SqliteStorage::all_chunks_have_embeddings()` and `buffer_fully_embedded()` now issue one SQL
+    query regardless of how many chunks a buffer contains
+  - Eliminates the previous pattern of issuing one `has_embedding()` call per chunk when checking
+    whether a buffer is fully embedded
 
 ## [1.2.4] - 2026-02-08
 
