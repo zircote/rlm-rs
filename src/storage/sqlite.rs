@@ -627,6 +627,67 @@ impl Storage for SqliteStorage {
 // ==================== Embedding & Search Operations ====================
 
 impl SqliteStorage {
+    /// Retrieves multiple chunks by their IDs in a single query.
+    ///
+    /// More efficient than calling [`Storage::get_chunk`] repeatedly when fetching
+    /// several chunks at once (e.g., populating search result previews).
+    ///
+    /// Returns a map from chunk ID to [`Chunk`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the query fails.
+    pub fn get_chunks_by_ids(&self, ids: &[i64]) -> Result<std::collections::HashMap<i64, Chunk>> {
+        if ids.is_empty() {
+            return Ok(std::collections::HashMap::new());
+        }
+
+        let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let sql = format!(
+            "SELECT id, buffer_id, content, byte_start, byte_end, chunk_index, \
+             strategy, token_count, line_start, line_end, has_overlap, \
+             content_hash, custom_metadata, created_at \
+             FROM chunks WHERE id IN ({placeholders})"
+        );
+
+        let mut stmt = self.conn.prepare(&sql).map_err(StorageError::from)?;
+
+        let chunks = stmt
+            .query_map(rusqlite::params_from_iter(ids.iter().copied()), |row| {
+                let line_start: Option<i64> = row.get(8)?;
+                let line_end: Option<i64> = row.get(9)?;
+                let line_range = match (line_start, line_end) {
+                    (Some(s), Some(e)) => Some((s as usize)..(e as usize)),
+                    _ => None,
+                };
+
+                Ok(Chunk {
+                    id: Some(row.get::<_, i64>(0)?),
+                    buffer_id: row.get(1)?,
+                    content: row.get(2)?,
+                    byte_range: (row.get::<_, i64>(3)? as usize)..(row.get::<_, i64>(4)? as usize),
+                    index: row.get::<_, i64>(5)? as usize,
+                    metadata: ChunkMetadata {
+                        strategy: row.get(6)?,
+                        token_count: row.get::<_, Option<i64>>(7)?.map(|c| c as usize),
+                        line_range,
+                        has_overlap: row.get::<_, i64>(10)? != 0,
+                        content_hash: row.get(11)?,
+                        custom: row.get(12)?,
+                        created_at: row.get(13)?,
+                    },
+                })
+            })
+            .map_err(StorageError::from)?
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(StorageError::from)?;
+
+        Ok(chunks
+            .into_iter()
+            .filter_map(|c| c.id.map(|id| (id, c)))
+            .collect())
+    }
+
     /// Stores an embedding for a chunk.
     ///
     /// # Arguments
@@ -1753,5 +1814,51 @@ mod tests {
 
         let results = storage.search_fts("hello", 2).unwrap();
         assert!(results.len() <= 2);
+    }
+
+    #[test]
+    fn test_get_chunks_by_ids_empty() {
+        let mut storage = SqliteStorage::in_memory().unwrap();
+        storage.init().unwrap();
+
+        let result = storage.get_chunks_by_ids(&[]).unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_get_chunks_by_ids_batch() {
+        let mut storage = SqliteStorage::in_memory().unwrap();
+        storage.init().unwrap();
+
+        let buffer_id = storage
+            .add_buffer(&Buffer::from_content("abc def ghi".to_string()))
+            .unwrap();
+        let chunks = vec![
+            Chunk::new(buffer_id, "abc".to_string(), 0..3, 0),
+            Chunk::new(buffer_id, "def".to_string(), 4..7, 1),
+            Chunk::new(buffer_id, "ghi".to_string(), 8..11, 2),
+        ];
+        storage.add_chunks(buffer_id, &chunks).unwrap();
+
+        // Fetch by known IDs
+        let all = storage.get_chunks(buffer_id).unwrap();
+        let ids: Vec<i64> = all.iter().filter_map(|c| c.id).take(2).collect();
+        assert_eq!(ids.len(), 2);
+
+        let map = storage.get_chunks_by_ids(&ids).unwrap();
+        assert_eq!(map.len(), 2);
+        for id in &ids {
+            assert!(map.contains_key(id));
+        }
+    }
+
+    #[test]
+    fn test_get_chunks_by_ids_missing_id() {
+        let mut storage = SqliteStorage::in_memory().unwrap();
+        storage.init().unwrap();
+
+        // Query for an ID that doesn't exist
+        let map = storage.get_chunks_by_ids(&[99999]).unwrap();
+        assert!(map.is_empty());
     }
 }
