@@ -3,11 +3,11 @@ title: "API Documentation"
 description: "Library API reference for rlm_rs."
 ---
 
-Rust library API documentation for `rlm-rs`.
+Rust library API documentation for `rlm-cli`.
 
 ## Overview
 
-`rlm-rs` can be used as both a CLI tool and a Rust library. This document covers the library API for programmatic integration.
+`rlm-cli` can be used as both a CLI tool and a Rust library. This document covers the library API for programmatic integration.
 
 ## Quick Start
 
@@ -15,7 +15,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rlm-rs = "1.2"
+rlm-cli = "1.2"
 ```
 
 Basic usage:
@@ -200,6 +200,24 @@ let chunk = ChunkBuilder::new()
     .build();
 ```
 
+### `estimate_tokens_for_text`
+
+Standalone utility function for estimating token counts on arbitrary text without creating a `Chunk`.
+
+**Location:** `rlm_rs::core::estimate_tokens_for_text`
+
+```rust
+use rlm_rs::core::estimate_tokens_for_text;
+
+let tokens = estimate_tokens_for_text("Hello, world!");
+```
+
+Uses a word-boundary heuristic (word count × 1.3 + punctuation × 0.5 + non-ASCII × 1.5) that is accurate to within 10–15% for mixed-language content. For the simple `size / 4` approximation, use `Chunk::estimate_tokens()` instead.
+
+| Signature | Returns | Description |
+|-----------|---------|-------------|
+| `estimate_tokens_for_text(text: &str)` | `usize` | Estimate token count for a string slice |
+
 ---
 
 ### `ChunkMetadata`
@@ -381,9 +399,12 @@ let chunks = chunker.chunk(1, rust_code, Some(&metadata))?;
 ### Factory Functions
 
 ```rust
-use rlm_rs::chunking::{create_chunker, available_strategies};
+use rlm_rs::chunking::{create_chunker, available_strategies, default_chunker};
 
-// Create chunker by name
+// Get the default chunker (semantic) without heap allocation
+let chunker = default_chunker();
+
+// Create chunker by name (returns Box<dyn Chunker>)
 let chunker = create_chunker("semantic")?;
 let chunker = create_chunker("code")?;  // Language-aware chunking
 let chunker = create_chunker("fixed")?;
@@ -392,6 +413,12 @@ let chunker = create_chunker("parallel")?;
 // List available strategies
 let strategies = available_strategies(); // ["fixed", "semantic", "code", "parallel"]
 ```
+
+| Function | Returns | Description |
+|----------|---------|-------------|
+| `default_chunker()` | `SemanticChunker` | Returns a `SemanticChunker` directly — no heap allocation, `const fn` |
+| `create_chunker(name)` | `Result<Box<dyn Chunker>>` | Create any strategy by name; errors on unknown strategy |
+| `available_strategies()` | `Vec<&'static str>` | List all recognized strategy names |
 
 ---
 
@@ -494,8 +521,6 @@ println!("Buffers: {}", stats.buffer_count);
 println!("Chunks: {}", stats.chunk_count);
 ```
 
----
-
 #### Embedding Management
 
 `SqliteStorage` provides a comprehensive set of methods for storing, retrieving, and querying
@@ -533,6 +558,12 @@ vector embeddings. These are direct methods on the struct and are not part of th
 | `get_embedding_models(buffer_id)` | `Result<Vec<String>>` | List the distinct model names used to embed chunks in a buffer. |
 | `get_embedding_model_counts(buffer_id)` | `Result<Vec<(Option<String>, i64)>>` | Count embeddings per model for a buffer. `None` entries represent un-labelled embeddings. |
 | `get_embedding_stats(buffer_id)` | `Result<EmbeddingStats>` | Summarise total vs embedded chunk counts and per-model breakdown for a buffer. |
+
+**Batch chunk retrieval**
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `get_chunks_by_ids(ids)` | `Result<HashMap<i64, Chunk>>` | Fetch multiple chunks by ID in a single `WHERE id IN (…)` query. Returns a map of chunk ID to `Chunk`. Missing IDs are silently omitted. Used internally by `populate_previews`. |
 
 **Full-text search**
 
@@ -608,10 +639,10 @@ Enable full search capabilities with features:
 ```toml
 [dependencies]
 # Default: includes fastembed embeddings
-rlm-rs = "1.2"
+rlm-cli = "1.2"
 
 # Full search with HNSW index
-rlm-rs = { version = "1.2", features = ["full-search"] }
+rlm-cli = { version = "1.2", features = ["full-search"] }
 ```
 
 #### Generating Embeddings
@@ -708,7 +739,9 @@ pub struct SearchResult {
 
 #### `populate_previews`
 
-Fetches chunk content and fills `content_preview` on each `SearchResult`.
+Fetches chunk content and fills `content_preview` on each `SearchResult`. All chunks are
+retrieved in a **single batched query** (`WHERE id IN (…)`) regardless of the result-set
+size — O(1) database round-trips instead of O(n).
 
 ```rust
 use rlm_rs::search::{hybrid_search, populate_previews, DEFAULT_PREVIEW_LEN};
@@ -744,6 +777,14 @@ for (model, count) in &info.models {
 }
 ```
 
+`EmbeddingModelInfo` fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `models` | `Vec<(Option<String>, i64)>` | Model name → embedding count pairs |
+| `total_embeddings` | `i64` | Sum of all embeddings for the buffer |
+| `has_mixed_models` | `bool` | `true` when more than one model is present |
+
 #### Incremental Embedding
 
 `embed_buffer_chunks_incremental` skips chunks that already have an up-to-date embedding, making repeated calls efficient for large or frequently-updated buffers.
@@ -764,6 +805,18 @@ println!("Replaced (model changed): {}", result.replaced_count);
 println!("Progress: {:.1}%", result.completion_percentage());
 println!("Had changes: {}", result.had_changes());
 ```
+
+`IncrementalEmbedResult` fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `embedded_count` | `usize` | New embeddings created this run |
+| `skipped_count` | `usize` | Chunks already embedded with current model |
+| `replaced_count` | `usize` | Old embeddings replaced (different model) |
+| `total_chunks` | `usize` | Total chunks in the buffer |
+| `model_name` | `String` | Model used for this run |
+
+Helper methods: `.had_changes() -> bool`, `.completion_percentage() -> f64`.
 
 #### Reciprocal Rank Fusion (RRF)
 
@@ -790,6 +843,12 @@ for (chunk_id, score) in &fused {
     println!("chunk {chunk_id}: {score:.4}");
 }
 ```
+
+`RrfConfig` fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `k` | `u32` | Smoothing constant — higher values give more weight to lower-ranked items (default: `60`) |
 
 #### HNSW Index (Optional)
 
@@ -1262,4 +1321,4 @@ fn process_document(path: &str) -> Result<()> {
 - [README.md](https://github.com/zircote/rlm-rs/blob/main/README.md) - Project overview
 - [Architecture](/architecture/architecture/) - Internal architecture
 - [CLI Reference](/getting-started/cli-reference/) - Command-line interface
-- [docs.rs/rlm-rs](https://docs.rs/rlm-rs) - Auto-generated rustdoc
+- [docs.rs/rlm-cli](https://docs.rs/rlm-cli) - Auto-generated rustdoc

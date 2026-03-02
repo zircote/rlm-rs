@@ -3,7 +3,7 @@ title: "CLI Reference"
 description: "Command-line interface reference for rlm-cli."
 ---
 
-Complete command-line interface reference for `rlm-rs`.
+Complete command-line interface reference for `rlm-cli`.
 
 ## Global Options
 
@@ -26,7 +26,7 @@ These options apply to all commands:
 Initialize the RLM database. Creates the database file and schema if they don't exist.
 
 ```bash
-rlm-rs init [OPTIONS]
+rlm-cli init [OPTIONS]
 ```
 
 **Options:**
@@ -37,10 +37,10 @@ rlm-rs init [OPTIONS]
 **Examples:**
 ```bash
 # Initialize new database
-rlm-rs init
+rlm-cli init
 
 # Re-initialize (destroys existing data)
-rlm-rs init --force
+rlm-cli init --force
 ```
 
 ---
@@ -50,7 +50,7 @@ rlm-rs init --force
 Show current RLM state including database info, buffer count, and statistics.
 
 ```bash
-rlm-rs status
+rlm-cli status
 ```
 
 **Example Output:**
@@ -65,7 +65,7 @@ Variables: 2
 
 **JSON Output:**
 ```bash
-rlm-rs status --format json
+rlm-cli status --format json
 ```
 
 ---
@@ -75,7 +75,7 @@ rlm-rs status --format json
 Delete all RLM state (buffers, chunks, variables). Use with caution.
 
 ```bash
-rlm-rs reset [OPTIONS]
+rlm-cli reset [OPTIONS]
 ```
 
 **Options:**
@@ -86,10 +86,10 @@ rlm-rs reset [OPTIONS]
 **Examples:**
 ```bash
 # Interactive reset (prompts for confirmation)
-rlm-rs reset
+rlm-cli reset
 
 # Non-interactive reset
-rlm-rs reset --yes
+rlm-cli reset --yes
 ```
 
 ---
@@ -103,7 +103,7 @@ Load a file into a buffer with automatic chunking and embedding generation.
 Embeddings are automatically generated during load for semantic search support.
 
 ```bash
-rlm-rs load [OPTIONS] <FILE>
+rlm-cli load [OPTIONS] <FILE>
 ```
 
 **Arguments:**
@@ -134,16 +134,16 @@ Rust, Python, JavaScript, TypeScript, Go, Java, C/C++, Ruby, PHP
 **Examples:**
 ```bash
 # Load with default settings (semantic chunking)
-rlm-rs load document.md
+rlm-cli load document.md
 
 # Load with custom name
-rlm-rs load document.md --name my-docs
+rlm-cli load document.md --name my-docs
 
 # Load with fixed chunking and custom size
-rlm-rs load logs.txt --chunker fixed --chunk-size 50000
+rlm-cli load logs.txt --chunker fixed --chunk-size 50000
 
 # Load large file with parallel chunking
-rlm-rs load huge-file.txt --chunker parallel --chunk-size 100000 --overlap 1000
+rlm-cli load huge-file.txt --chunker parallel --chunk-size 100000 --overlap 1000
 ```
 
 ---
@@ -153,7 +153,7 @@ rlm-rs load huge-file.txt --chunker parallel --chunk-size 100000 --overlap 1000
 List all buffers in the database.
 
 ```bash
-rlm-rs list
+rlm-cli list
 ```
 
 **Example Output:**
@@ -166,7 +166,7 @@ ID  Name           Size      Chunks  Created
 
 **JSON Output:**
 ```bash
-rlm-rs list --format json
+rlm-cli list --format json
 ```
 
 ---
@@ -176,7 +176,7 @@ rlm-rs list --format json
 Show detailed information about a specific buffer.
 
 ```bash
-rlm-rs show [OPTIONS] <BUFFER>
+rlm-cli show [OPTIONS] <BUFFER>
 ```
 
 **Arguments:**
@@ -192,13 +192,13 @@ rlm-rs show [OPTIONS] <BUFFER>
 **Examples:**
 ```bash
 # Show buffer by name
-rlm-rs show document.md
+rlm-cli show document.md
 
 # Show buffer by ID
-rlm-rs show 1
+rlm-cli show 1
 
 # Show buffer with chunk details
-rlm-rs show document.md --chunks
+rlm-cli show document.md --chunks
 ```
 
 ---
@@ -208,7 +208,7 @@ rlm-rs show document.md --chunks
 Delete a buffer and its associated chunks.
 
 ```bash
-rlm-rs delete [OPTIONS] <BUFFER>
+rlm-cli delete [OPTIONS] <BUFFER>
 ```
 
 **Arguments:**
@@ -224,10 +224,10 @@ rlm-rs delete [OPTIONS] <BUFFER>
 **Examples:**
 ```bash
 # Delete with confirmation
-rlm-rs delete document.md
+rlm-cli delete document.md
 
 # Delete without confirmation
-rlm-rs delete 1 --yes
+rlm-cli delete 1 --yes
 ```
 
 ---
@@ -237,7 +237,7 @@ rlm-rs delete 1 --yes
 Create a new buffer from text content. Useful for storing intermediate results.
 
 ```bash
-rlm-rs add-buffer <NAME> [CONTENT]
+rlm-cli add-buffer <NAME> [CONTENT]
 ```
 
 **Arguments:**
@@ -249,13 +249,13 @@ rlm-rs add-buffer <NAME> [CONTENT]
 **Examples:**
 ```bash
 # Add buffer with inline content
-rlm-rs add-buffer summary "This is the summary of chunk 1..."
+rlm-cli add-buffer summary "This is the summary of chunk 1..."
 
 # Add buffer from stdin
-echo "Content from pipe" | rlm-rs add-buffer piped-content
+echo "Content from pipe" | rlm-cli add-buffer piped-content
 
 # Add buffer from file via stdin
-cat results.txt | rlm-rs add-buffer results
+cat results.txt | rlm-cli add-buffer results
 ```
 
 ---
@@ -265,7 +265,7 @@ cat results.txt | rlm-rs add-buffer results
 Export all buffers to a file (JSON format).
 
 ```bash
-rlm-rs export-buffers [OPTIONS]
+rlm-cli export-buffers [OPTIONS]
 ```
 
 **Options:**
@@ -277,10 +277,10 @@ rlm-rs export-buffers [OPTIONS]
 **Examples:**
 ```bash
 # Export to stdout
-rlm-rs export-buffers --format json
+rlm-cli export-buffers --format json
 
 # Export to file
-rlm-rs export-buffers --output backup.json --pretty
+rlm-cli export-buffers --output backup.json --pretty
 ```
 
 ---
@@ -292,7 +292,7 @@ rlm-rs export-buffers --output backup.json --pretty
 View a slice of buffer content without loading the entire buffer.
 
 ```bash
-rlm-rs peek [OPTIONS] <BUFFER>
+rlm-cli peek [OPTIONS] <BUFFER>
 ```
 
 **Arguments:**
@@ -309,13 +309,13 @@ rlm-rs peek [OPTIONS] <BUFFER>
 **Examples:**
 ```bash
 # View first 3000 bytes (default)
-rlm-rs peek document.md
+rlm-cli peek document.md
 
 # View specific range
-rlm-rs peek document.md --start 1000 --end 5000
+rlm-cli peek document.md --start 1000 --end 5000
 
 # View from offset to default length
-rlm-rs peek document.md --start 10000
+rlm-cli peek document.md --start 10000
 ```
 
 ---
@@ -325,7 +325,7 @@ rlm-rs peek document.md --start 10000
 Search buffer content using regular expressions.
 
 ```bash
-rlm-rs grep [OPTIONS] <BUFFER> <PATTERN>
+rlm-cli grep [OPTIONS] <BUFFER> <PATTERN>
 ```
 
 **Arguments:**
@@ -344,16 +344,16 @@ rlm-rs grep [OPTIONS] <BUFFER> <PATTERN>
 **Examples:**
 ```bash
 # Basic search
-rlm-rs grep document.md "error"
+rlm-cli grep document.md "error"
 
 # Case-insensitive search
-rlm-rs grep document.md "TODO" --ignore-case
+rlm-cli grep document.md "TODO" --ignore-case
 
 # Regex pattern with context
-rlm-rs grep logs.txt "ERROR.*timeout" --window 200 --max-matches 50
+rlm-cli grep logs.txt "ERROR.*timeout" --window 200 --max-matches 50
 
 # Search by buffer ID
-rlm-rs grep 1 "function.*async"
+rlm-cli grep 1 "function.*async"
 ```
 
 ---
@@ -365,7 +365,7 @@ rlm-rs grep 1 "function.*async"
 Calculate and display chunk boundaries for a buffer without writing files.
 
 ```bash
-rlm-rs chunk-indices [OPTIONS] <BUFFER>
+rlm-cli chunk-indices [OPTIONS] <BUFFER>
 ```
 
 **Arguments:**
@@ -382,10 +382,10 @@ rlm-rs chunk-indices [OPTIONS] <BUFFER>
 **Examples:**
 ```bash
 # Show chunk boundaries with defaults
-rlm-rs chunk-indices document.md
+rlm-cli chunk-indices document.md
 
 # Custom chunk size
-rlm-rs chunk-indices document.md --chunk-size 20000 --overlap 1000
+rlm-cli chunk-indices document.md --chunk-size 20000 --overlap 1000
 ```
 
 ---
@@ -395,7 +395,7 @@ rlm-rs chunk-indices document.md --chunk-size 20000 --overlap 1000
 Split a buffer into chunk files for processing.
 
 ```bash
-rlm-rs write-chunks [OPTIONS] <BUFFER>
+rlm-cli write-chunks [OPTIONS] <BUFFER>
 ```
 
 **Arguments:**
@@ -417,13 +417,13 @@ Files are named `{prefix}_{index}.txt` (e.g., `chunk_0.txt`, `chunk_1.txt`).
 **Examples:**
 ```bash
 # Write chunks with defaults
-rlm-rs write-chunks document.md
+rlm-cli write-chunks document.md
 
 # Custom output directory and prefix
-rlm-rs write-chunks document.md --out-dir ./output --prefix doc
+rlm-cli write-chunks document.md --out-dir ./output --prefix doc
 
 # Custom chunk size for smaller chunks
-rlm-rs write-chunks large.txt --chunk-size 20000 --overlap 500
+rlm-cli write-chunks large.txt --chunk-size 20000 --overlap 500
 ```
 
 ---
@@ -435,7 +435,7 @@ rlm-rs write-chunks large.txt --chunk-size 20000 --overlap 500
 Search chunks using hybrid semantic + BM25 search with Reciprocal Rank Fusion (RRF).
 
 ```bash
-rlm-rs search [OPTIONS] <QUERY>
+rlm-cli search [OPTIONS] <QUERY>
 ```
 
 **Arguments:**
@@ -465,22 +465,22 @@ rlm-rs search [OPTIONS] <QUERY>
 **Examples:**
 ```bash
 # Basic hybrid search
-rlm-rs search "database connection errors"
+rlm-cli search "database connection errors"
 
 # Search with more results
-rlm-rs search "API endpoints" --top-k 20
+rlm-cli search "API endpoints" --top-k 20
 
 # Semantic-only search
-rlm-rs search "authentication flow" --mode semantic
+rlm-cli search "authentication flow" --mode semantic
 
 # Search specific buffer
-rlm-rs search "error handling" --buffer logs
+rlm-cli search "error handling" --buffer logs
 
 # Search with content preview
-rlm-rs search "auth" --preview --preview-len 200
+rlm-cli search "auth" --preview --preview-len 200
 
 # JSON output for programmatic use
-rlm-rs --format json search "your query" --top-k 10
+rlm-cli --format json search "your query" --top-k 10
 ```
 
 **Output (JSON format):**
@@ -507,7 +507,7 @@ rlm-rs --format json search "your query" --top-k 10
 Update an existing buffer with new content, re-chunking and optionally re-embedding.
 
 ```bash
-rlm-rs update-buffer [OPTIONS] <BUFFER> [CONTENT]
+rlm-cli update-buffer [OPTIONS] <BUFFER> [CONTENT]
 ```
 
 **Arguments:**
@@ -527,16 +527,16 @@ rlm-rs update-buffer [OPTIONS] <BUFFER> [CONTENT]
 **Examples:**
 ```bash
 # Update from stdin
-cat updated.txt | rlm-rs update-buffer main-source
+cat updated.txt | rlm-cli update-buffer main-source
 
 # Update with inline content
-rlm-rs update-buffer my-buffer "new content here"
+rlm-cli update-buffer my-buffer "new content here"
 
 # Update and re-embed
-rlm-rs update-buffer my-buffer --embed
+rlm-cli update-buffer my-buffer --embed
 
 # Update with custom chunking
-cat new_code.rs | rlm-rs update-buffer code-buffer --strategy code
+cat new_code.rs | rlm-cli update-buffer code-buffer --strategy code
 ```
 
 ---
@@ -546,7 +546,7 @@ cat new_code.rs | rlm-rs update-buffer code-buffer --strategy code
 Split chunks into batches for parallel subagent processing. Returns batch assignments with chunk IDs for orchestrator use.
 
 ```bash
-rlm-rs dispatch [OPTIONS] <BUFFER>
+rlm-cli dispatch [OPTIONS] <BUFFER>
 ```
 
 **Arguments:**
@@ -566,16 +566,16 @@ rlm-rs dispatch [OPTIONS] <BUFFER>
 **Examples:**
 ```bash
 # Dispatch all chunks in batches of 10
-rlm-rs dispatch my-buffer
+rlm-cli dispatch my-buffer
 
 # Create 4 batches for 4 parallel workers
-rlm-rs dispatch my-buffer --workers 4
+rlm-cli dispatch my-buffer --workers 4
 
 # Only dispatch chunks relevant to a query
-rlm-rs dispatch my-buffer --query "error handling"
+rlm-cli dispatch my-buffer --query "error handling"
 
 # JSON output for orchestrator
-rlm-rs --format json dispatch my-buffer
+rlm-cli --format json dispatch my-buffer
 ```
 
 **Output (JSON format):**
@@ -598,7 +598,7 @@ rlm-rs --format json dispatch my-buffer
 Combine findings from analyst subagents. Reads JSON findings, filters by relevance, groups, and outputs a synthesizer-ready report.
 
 ```bash
-rlm-rs aggregate [OPTIONS]
+rlm-cli aggregate [OPTIONS]
 ```
 
 **Options:**
@@ -621,19 +621,19 @@ rlm-rs aggregate [OPTIONS]
 **Examples:**
 ```bash
 # Aggregate from stdin
-cat findings.json | rlm-rs aggregate
+cat findings.json | rlm-cli aggregate
 
 # Read from buffer
-rlm-rs aggregate --buffer analyst-findings
+rlm-cli aggregate --buffer analyst-findings
 
 # Filter to high relevance only
-rlm-rs aggregate --min-relevance high
+rlm-cli aggregate --min-relevance high
 
 # Store aggregated results
-rlm-rs aggregate --output-buffer synthesis-input
+rlm-cli aggregate --output-buffer synthesis-input
 
 # JSON output
-rlm-rs --format json aggregate
+rlm-cli --format json aggregate
 ```
 
 ---
@@ -645,7 +645,7 @@ rlm-rs --format json aggregate
 Get a chunk by ID (primary pass-by-reference mechanism for subagents).
 
 ```bash
-rlm-rs chunk get [OPTIONS] <ID>
+rlm-cli chunk get [OPTIONS] <ID>
 ```
 
 **Arguments:**
@@ -661,10 +661,10 @@ rlm-rs chunk get [OPTIONS] <ID>
 **Examples:**
 ```bash
 # Get chunk content
-rlm-rs chunk get 42
+rlm-cli chunk get 42
 
 # Get chunk with metadata (JSON)
-rlm-rs --format json chunk get 42 --metadata
+rlm-cli --format json chunk get 42 --metadata
 ```
 
 ---
@@ -674,7 +674,7 @@ rlm-rs --format json chunk get 42 --metadata
 List all chunks for a buffer.
 
 ```bash
-rlm-rs chunk list <BUFFER>
+rlm-cli chunk list [OPTIONS] <BUFFER>
 ```
 
 **Arguments:**
@@ -682,13 +682,25 @@ rlm-rs chunk list <BUFFER>
 |----------|-------------|
 | `<BUFFER>` | Buffer ID or name |
 
+**Options:**
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-p, --preview` | | Show a content preview for each chunk |
+| `--preview-len <N>` | `100` | Preview length in characters |
+
 **Examples:**
 ```bash
 # List chunks for buffer
-rlm-rs chunk list docs
+rlm-cli chunk list docs
+
+# List with content preview
+rlm-cli chunk list docs --preview
+
+# List with longer preview
+rlm-cli chunk list docs --preview --preview-len 200
 
 # JSON output
-rlm-rs --format json chunk list docs
+rlm-cli --format json chunk list docs | jq '.[].id'
 ```
 
 ---
@@ -698,7 +710,7 @@ rlm-rs --format json chunk list docs
 Generate embeddings for buffer chunks. Note: Embeddings are automatically generated during `load`, so this is typically only needed with `--force` to re-embed.
 
 ```bash
-rlm-rs chunk embed [OPTIONS] <BUFFER>
+rlm-cli chunk embed [OPTIONS] <BUFFER>
 ```
 
 **Arguments:**
@@ -714,10 +726,10 @@ rlm-rs chunk embed [OPTIONS] <BUFFER>
 **Examples:**
 ```bash
 # Check if embeddings exist (will report "already embedded")
-rlm-rs chunk embed docs
+rlm-cli chunk embed docs
 
 # Force re-embedding
-rlm-rs chunk embed docs --force
+rlm-cli chunk embed docs --force
 ```
 
 ---
@@ -727,7 +739,7 @@ rlm-rs chunk embed docs --force
 Show embedding status for all buffers.
 
 ```bash
-rlm-rs chunk status
+rlm-cli chunk status
 ```
 
 **Example Output:**
@@ -751,7 +763,7 @@ logs             2     27      27
 Manage context-scoped variables (persisted per session/context).
 
 ```bash
-rlm-rs var [OPTIONS] <NAME> [VALUE]
+rlm-cli var [OPTIONS] <NAME> [VALUE]
 ```
 
 **Arguments:**
@@ -768,13 +780,13 @@ rlm-rs var [OPTIONS] <NAME> [VALUE]
 **Examples:**
 ```bash
 # Set a variable
-rlm-rs var current_chunk 3
+rlm-cli var current_chunk 3
 
 # Get a variable
-rlm-rs var current_chunk
+rlm-cli var current_chunk
 
 # Delete a variable
-rlm-rs var current_chunk --delete
+rlm-cli var current_chunk --delete
 ```
 
 ---
@@ -784,7 +796,7 @@ rlm-rs var current_chunk --delete
 Manage global variables (persisted across all contexts).
 
 ```bash
-rlm-rs global [OPTIONS] <NAME> [VALUE]
+rlm-cli global [OPTIONS] <NAME> [VALUE]
 ```
 
 **Arguments:**
@@ -801,13 +813,13 @@ rlm-rs global [OPTIONS] <NAME> [VALUE]
 **Examples:**
 ```bash
 # Set a global variable
-rlm-rs global project_name "my-project"
+rlm-cli global project_name "my-project"
 
 # Get a global variable
-rlm-rs global project_name
+rlm-cli global project_name
 
 # Delete a global variable
-rlm-rs global project_name --delete
+rlm-cli global project_name --delete
 ```
 
 ---
@@ -852,16 +864,16 @@ All commands support multiple output formats via `--format`:
 
 ```bash
 # Status as JSON
-rlm-rs status --format json
+rlm-cli status --format json
 
 # List buffers as JSON
-rlm-rs list --format json
+rlm-cli list --format json
 
 # Search results as JSON
-rlm-rs grep document.md "pattern" --format json
+rlm-cli grep document.md "pattern" --format json
 
 # NDJSON for streaming pipelines
-rlm-rs --format ndjson chunk list my-buffer
+rlm-cli --format ndjson chunk list my-buffer
 ```
 
 ---

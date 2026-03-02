@@ -3,7 +3,7 @@ title: "Troubleshooting"
 description: "Common issues and solutions for rlm-rs."
 ---
 
-Common issues and solutions when working with `rlm-rs`.
+Common issues and solutions when working with `rlm-cli`.
 
 ## Table of Contents
 
@@ -50,17 +50,17 @@ sudo apt-get install build-essential
 xcode-select --install
 
 # Or install without HNSW
-cargo install rlm-rs --no-default-features --features fastembed-embeddings
+cargo install rlm-cli --no-default-features --features fastembed-embeddings
 ````
 
 3. **Network issues downloading dependencies**
 
 ````bash
 # Use vendored dependencies
-cargo install rlm-rs --locked
+cargo install rlm-cli --locked
 
 # Or retry with verbose output
-cargo install rlm-rs -v
+cargo install rlm-cli -v
 ````
 
 ---
@@ -126,7 +126,7 @@ clang++ --version  # Should be 5.0+
 
 **Background:**
 
-rlm-rs uses usearch 2.23.0 from crates.io, pinned to `<2.24` to avoid compilation issues on Windows.
+rlm-cli uses usearch 2.23.0 from crates.io, pinned to `<2.24` to avoid compilation issues on Windows.
 
 **Why version 2.24+ is excluded:**
 
@@ -206,21 +206,21 @@ Error: Database file not found: .rlm/rlm-state.db
 Initialize the database:
 
 ````bash
-rlm-rs init
+rlm-cli init
 ````
 
 Or specify custom path:
 
 ````bash
-rlm-rs --db-path /path/to/db.sqlite init
-rlm-rs --db-path /path/to/db.sqlite status
+rlm-cli --db-path /path/to/db.sqlite init
+rlm-cli --db-path /path/to/db.sqlite status
 ````
 
 Set environment variable for persistent custom path:
 
 ````bash
 export RLM_DB_PATH=/path/to/db.sqlite
-rlm-rs status
+rlm-cli status
 ````
 
 ### Permission Denied
@@ -245,7 +245,7 @@ chmod 644 .rlm/rlm-state.db
 
 ````bash
 mkdir -p ~/rlm-data
-rlm-rs --db-path ~/rlm-data/rlm.db init
+rlm-cli --db-path ~/rlm-data/rlm.db init
 ````
 
 ### Buffer Not Found
@@ -261,23 +261,23 @@ Error: Buffer 'docs' not found
 1. **List available buffers:**
 
 ````bash
-rlm-rs list
+rlm-cli list
 ````
 
 2. **Load the buffer if missing:**
 
 ````bash
-rlm-rs load document.md --name docs
+rlm-cli load document.md --name docs
 ````
 
 3. **Check for typos in buffer name (case-sensitive):**
 
 ````bash
 # Wrong
-rlm-rs search "query" --buffer Docs
+rlm-cli search "query" --buffer Docs
 
 # Correct
-rlm-rs search "query" --buffer docs
+rlm-cli search "query" --buffer docs
 ````
 
 ---
@@ -296,20 +296,20 @@ Loading a 100MB file takes >5 minutes
 
 ````bash
 # Before: Sequential chunking
-rlm-rs load large.txt --chunker fixed
+rlm-cli load large.txt --chunker fixed
 
 # After: Parallel chunking
-rlm-rs load large.txt --chunker parallel
+rlm-cli load large.txt --chunker parallel
 ````
 
 2. **Increase chunk size (fewer chunks to embed):**
 
 ````bash
 # Before: Many small chunks
-rlm-rs load file.txt --chunk-size 50000  # More chunks
+rlm-cli load file.txt --chunk-size 50000  # More chunks
 
 # After: Fewer large chunks
-rlm-rs load file.txt --chunk-size 200000  # Fewer chunks
+rlm-cli load file.txt --chunk-size 200000  # Fewer chunks
 ````
 
 3. **Disable embedding if not needed:**
@@ -319,7 +319,7 @@ rlm-rs load file.txt --chunk-size 200000  # Fewer chunks
 cargo build --release --no-default-features
 
 # Then load without embedding overhead
-rlm-rs load file.txt
+rlm-cli load file.txt
 ````
 
 **Performance comparison (100MB file):**
@@ -345,27 +345,27 @@ Search takes >10 seconds for 50K chunks
 cargo build --release --features full-search
 
 # Search will use approximate NN (much faster)
-rlm-rs search "query" --buffer docs
+rlm-cli search "query" --buffer docs
 ````
 
 2. **Reduce top-k:**
 
 ````bash
 # Before
-rlm-rs search "query" --top-k 100  # Slow
+rlm-cli search "query" --top-k 100  # Slow
 
 # After
-rlm-rs search "query" --top-k 10  # Much faster
+rlm-cli search "query" --top-k 10  # Much faster
 ````
 
 3. **Use BM25-only for keyword search:**
 
 ````bash
 # Semantic search is slower
-rlm-rs search "exact keyword" --mode hybrid
+rlm-cli search "exact keyword" --mode hybrid
 
 # BM25-only is faster
-rlm-rs search "exact keyword" --mode bm25
+rlm-cli search "exact keyword" --mode bm25
 ````
 
 **Search performance (50K chunks):**
@@ -382,7 +382,7 @@ rlm-rs search "exact keyword" --mode bm25
 **Symptom:**
 
 ````
-rlm-rs process using 8GB RAM
+rlm-cli process using 8GB RAM
 ````
 
 **Solutions:**
@@ -391,15 +391,15 @@ rlm-rs process using 8GB RAM
 
 ````bash
 # Increase chunk size
-rlm-rs load file.txt --chunk-size 500000  # Larger chunks
+rlm-cli load file.txt --chunk-size 500000  # Larger chunks
 ````
 
 2. **Delete unused buffers:**
 
 ````bash
-rlm-rs list
-rlm-rs delete old-buffer-1
-rlm-rs delete old-buffer-2
+rlm-cli list
+rlm-cli delete old-buffer-1
+rlm-cli delete old-buffer-2
 ````
 
 3. **Use BM25-only (no embedding memory):**
@@ -432,7 +432,7 @@ cargo build --release --features fastembed-embeddings
 **Symptom:**
 
 ````bash
-rlm-rs search "query" --buffer docs
+rlm-cli search "query" --buffer docs
 # No results found
 ````
 
@@ -441,40 +441,40 @@ rlm-rs search "query" --buffer docs
 1. **Check buffer exists:**
 
 ````bash
-rlm-rs list
+rlm-cli list
 ````
 
 2. **Check buffer has chunks:**
 
 ````bash
-rlm-rs chunk list --buffer docs
+rlm-cli chunk list docs
 ````
 
 3. **Check embeddings are generated:**
 
 ````bash
-rlm-rs chunk status --buffer docs
-# Should show: Embedded: X/X (100%)
+rlm-cli chunk status
+# Shows embedding status for all buffers
 ````
 
 4. **Try different search mode:**
 
 ````bash
 # Try BM25 keyword search
-rlm-rs search "query" --buffer docs --mode bm25
+rlm-cli search "query" --buffer docs --mode bm25
 
 # Try semantic-only
-rlm-rs search "query" --buffer docs --mode semantic
+rlm-cli search "query" --buffer docs --mode semantic
 ````
 
 5. **Check query spelling:**
 
 ````bash
 # Typo
-rlm-rs search "errro handling"  # No results
+rlm-cli search "errro handling"  # No results
 
 # Correct
-rlm-rs search "error handling"  # Results found
+rlm-cli search "error handling"  # Results found
 ````
 
 ### Poor Search Relevance
@@ -489,34 +489,34 @@ Search returns irrelevant results
 
 ````bash
 # Better: Combines semantic + keyword
-rlm-rs search "authentication flow" --mode hybrid
+rlm-cli search "authentication flow" --mode hybrid
 ````
 
 2. **Increase top-k to see more results:**
 
 ````bash
-rlm-rs search "query" --top-k 20  # Instead of default 10
+rlm-cli search "query" --top-k 20  # Instead of default 10
 ````
 
 3. **Try different query phrasing:**
 
 ````bash
 # Too specific
-rlm-rs search "JWT authentication with refresh tokens"
+rlm-cli search "JWT authentication with refresh tokens"
 
 # More general
-rlm-rs search "authentication tokens"
+rlm-cli search "authentication tokens"
 ````
 
 4. **Check chunk boundaries:**
 
 ````bash
 # View chunk content
-rlm-rs chunk get 42
+rlm-cli chunk get 42
 
 # Might need different chunking strategy
-rlm-rs delete docs
-rlm-rs load document.md --name docs --chunker semantic
+rlm-cli delete docs
+rlm-cli load document.md --name docs --chunker semantic
 ````
 
 ---
@@ -528,7 +528,7 @@ rlm-rs load document.md --name docs --chunker semantic
 **Symptom:**
 
 ````bash
-rlm-rs chunk status --buffer docs
+rlm-cli chunk status
 # Embedded: 0/100 (0%)
 ````
 
@@ -537,13 +537,13 @@ rlm-rs chunk status --buffer docs
 1. **Generate embeddings manually:**
 
 ````bash
-rlm-rs chunk embed --buffer docs
+rlm-cli chunk embed docs
 ````
 
 2. **Check fastembed feature is enabled:**
 
 ````bash
-rlm-rs --version
+rlm-cli --version
 # Should show: Features: fastembed-embeddings
 ````
 
@@ -574,7 +574,7 @@ curl -I https://huggingface.co/
 
 ````bash
 rm -rf ~/.cache/fastembed/
-rlm-rs chunk embed --buffer docs
+rlm-cli chunk embed docs
 ````
 
 3. **Use HTTP proxy if needed:**
@@ -582,7 +582,7 @@ rlm-rs chunk embed --buffer docs
 ````bash
 export HTTP_PROXY=http://proxy.example.com:8080
 export HTTPS_PROXY=http://proxy.example.com:8080
-rlm-rs chunk embed --buffer docs
+rlm-cli chunk embed docs
 ````
 
 4. **Download model manually:**
@@ -610,7 +610,7 @@ Buffer was embedded with a different model (e.g., all-MiniLM-L6-v2 vs BGE-M3)
 Re-embed with current model:
 
 ````bash
-rlm-rs chunk embed --buffer docs --force
+rlm-cli chunk embed docs --force
 ````
 
 ---
@@ -627,14 +627,14 @@ Error: database is locked
 
 **Solutions:**
 
-1. **Close other rlm-rs processes:**
+1. **Close other rlm-cli processes:**
 
 ````bash
 # Check for running processes
-ps aux | grep rlm-rs
+ps aux | grep rlm-cli
 
 # Kill if needed
-pkill rlm-rs
+pkill rlm-cli
 ````
 
 2. **Wait for lock to release:**
@@ -646,7 +646,7 @@ SQLite locks are temporary - wait 5-10 seconds and retry.
 ````bash
 # Remove .rlm directory entirely (WARNING: deletes all data)
 rm -rf .rlm/
-rlm-rs init
+rlm-cli init
 ````
 
 ### Database Corruption
@@ -669,14 +669,14 @@ sqlite3 .rlm/rlm-state.db "PRAGMA integrity_check;"
 
 ````bash
 # Export buffers if possible
-rlm-rs export-buffers --output backup.json
+rlm-cli export-buffers --output backup.json
 ````
 
 3. **Reset database (last resort - DESTROYS DATA):**
 
 ````bash
 rm .rlm/rlm-state.db
-rlm-rs init
+rlm-cli init
 ````
 
 4. **Restore from backup:**
@@ -699,15 +699,15 @@ Error: No space left on device
 1. **Check database size:**
 
 ````bash
-rlm-rs status
+rlm-cli status
 # Shows: Database: .rlm/rlm-state.db (512 MB)
 ````
 
 2. **Delete unused buffers:**
 
 ````bash
-rlm-rs list
-rlm-rs delete old-buffer
+rlm-cli list
+rlm-cli delete old-buffer
 ````
 
 3. **Vacuum database:**
@@ -733,17 +733,17 @@ If these solutions don't resolve your issue:
 2. **Enable verbose output:**
 
 ````bash
-rlm-rs --verbose <command>
+rlm-cli --verbose <command>
 ````
 
 3. **Collect diagnostic info:**
 
 ````bash
 # Version and features
-rlm-rs --version
+rlm-cli --version
 
 # Database status
-rlm-rs status
+rlm-cli status
 
 # System info
 uname -a
@@ -753,7 +753,7 @@ rustc --version
 4. **Open an issue:** [New Issue](https://github.com/zircote/rlm-rs/issues/new)
 
 Include:
-- `rlm-rs --version` output
+- `rlm-cli --version` output
 - Operating system and Rust version
 - Full error message
 - Steps to reproduce

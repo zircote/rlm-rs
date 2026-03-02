@@ -1,0 +1,34 @@
+---
+title: "Daily Perf Improver"
+description: "Reference for the Daily Perf Improver GitHub Actions workflow."
+sidebar:
+  badge:
+    text: "Other"
+    variant: "note"
+---
+
+**Source:** [`.github/workflows/daily-perf-improver.lock.yml`](https://github.com/zircote/rlm-rs/blob/main/.github/workflows/daily-perf-improver.lock.yml)
+
+## Triggers
+
+| Event |
+|---|
+| `discussion` |
+| `discussion_comment` |
+| `issue_comment` |
+| `issues` |
+| `pull_request` |
+| `pull_request_review_comment` |
+| `schedule` |
+| `workflow_dispatch` |
+
+## Jobs
+
+- `activation`
+- `agent`
+- `conclusion`
+- `detection`
+- `pre_activation`
+- `push_repo_memory`
+- `safe_outputs`
+
