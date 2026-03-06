@@ -212,8 +212,29 @@ MIT License - see [LICENSE](LICENSE) for details.
 - **[API Reference](docs/api.md)** - Rust library documentation
 - **[ADRs](docs/adr/)** - Architectural Decision Records
 
+## Citing This Project
+
+If you use rlm-cli in your research or projects, please cite it. You can use GitHub's built-in "Cite this repository" button, or use the following BibTeX:
+
+```bibtex
+@software{allen_rlm_cli_2026,
+  author       = {Allen, Robert},
+  title        = {rlm-cli},
+  version      = {1.2.4},
+  year         = {2026},
+  url          = {https://github.com/zircote/rlm-rs},
+  license      = {MIT}
+}
+```
+
 ## Acknowledgments
+
+This project builds on prior work in recursive language model architectures:
 
 - [claude_code_RLM](https://github.com/brainqub3/claude_code_RLM) - Original Python RLM implementation by [Brainqub3](https://brainqub3.com/) that inspired the creation of this project
 - [RLM Paper (arXiv:2512.24601)](https://arxiv.org/abs/2512.24601) - Recursive Language Model pattern by Zhang, Kraska, and Khattab (MIT CSAIL)
 - [Claude Code](https://claude.ai/code) - AI-powered development environment
+
+> Adeojo, John. *claude_code_RLM*. GitHub, 2026. https://github.com/brainqub3/claude_code_RLM
+
+> Zhang, Alex L., Tim Kraska, and Omar Khattab. "Recursive Language Models." arXiv:2512.24601, 2025. MIT CSAIL. https://arxiv.org/abs/2512.24601

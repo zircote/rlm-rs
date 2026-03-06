@@ -1,0 +1,76 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "rlm-cli"
+abstract: >-
+  Recursive Language Model (RLM) CLI for Claude Code - handles long-context
+  tasks via chunking and recursive sub-LLM calls. Implements hybrid semantic
+  and BM25 search with Reciprocal Rank Fusion, code-aware chunking, and
+  pass-by-reference chunk retrieval for efficient subagent processing.
+version: 1.2.4
+date-released: 2026-02-08
+license: MIT
+url: "https://github.com/zircote/rlm-rs"
+repository-code: "https://github.com/zircote/rlm-rs"
+authors:
+  - family-names: Allen
+    given-names: Robert
+    email: zircote@gmail.com
+    orcid: "https://orcid.org/0009-0007-9691-004X"
+identifiers:
+  - type: url
+    value: "https://github.com/zircote/rlm-rs"
+    description: "GitHub repository"
+keywords:
+  - llm
+  - claude
+  - recursive
+  - language-model
+  - repl
+preferred-citation:
+  type: software
+  title: "rlm-cli"
+  abstract: >-
+    Recursive Language Model (RLM) CLI for Claude Code - handles long-context
+    tasks via chunking and recursive sub-LLM calls.
+  version: 1.2.4
+  date-released: 2026-02-08
+  license: MIT
+  url: "https://github.com/zircote/rlm-rs"
+  repository-code: "https://github.com/zircote/rlm-rs"
+  authors:
+    - family-names: Allen
+      given-names: Robert
+      email: zircote@gmail.com
+      orcid: "https://orcid.org/0009-0007-9691-004X"
+references:
+  - type: software
+    title: "claude_code_RLM"
+    abstract: >-
+      Original Python implementation of the Recursive Language Model pattern
+      for Claude Code that inspired the creation of rlm-rs.
+    url: "https://github.com/brainqub3/claude_code_RLM"
+    repository-code: "https://github.com/brainqub3/claude_code_RLM"
+    license: MIT
+    authors:
+      - family-names: Adeojo
+        given-names: John
+    year: 2026
+  - type: article
+    title: "Recursive Language Models"
+    abstract: >-
+      RLMs treat long prompts as part of an external environment and allow the
+      LLM to programmatically examine, decompose, and recursively call itself
+      over snippets of the prompt. RLMs can handle inputs up to two orders of
+      magnitude beyond model context windows.
+    url: "https://arxiv.org/abs/2512.24601"
+    authors:
+      - family-names: Zhang
+        given-names: Alex L.
+      - family-names: Kraska
+        given-names: Tim
+      - family-names: Khattab
+        given-names: Omar
+    year: 2025
+    institution:
+      name: "MIT CSAIL"
