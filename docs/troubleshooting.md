@@ -123,21 +123,21 @@ clang++ --version  # Should be 5.0+
 
 **Background:**
 
-rlm-cli uses usearch 2.23.0 from crates.io, pinned to `<2.24` to avoid compilation issues on Windows.
+rlm-cli uses usearch 2.24.0 from crates.io, pinned to `<2.25`.
 
-**Why version 2.24+ is excluded:**
+**Why version 2.25+ is not yet included:**
 
-usearch v2.24.0 introduced a `MAP_FAILED` constant that is POSIX-only and breaks Windows compilation. See [unum-cloud/USearch#715](https://github.com/unum-cloud/USearch/issues/715).
+usearch v2.24.0 is now supported since rlm-cli v1.2.4 shipped a move-semantics fix that resolved the segfault. The upper bound `<2.25` is a conservative pin pending validation of newer releases. See [unum-cloud/USearch#715](https://github.com/unum-cloud/USearch/issues/715).
 
 **If you encounter version-related errors:**
 
-1. **Verify Cargo.lock uses 2.23.x:**
+1. **Verify Cargo.lock uses 2.24.x:**
 
 ````bash
 grep -A2 'name = "usearch"' Cargo.lock
 ````
 
-Expected output should show version `2.23.x`.
+Expected output should show version `2.24.x`.
 
 2. **Clear cache and rebuild:**
 
@@ -152,7 +152,7 @@ cargo build --release --features usearch-hnsw
 Ensure `Cargo.toml` references the official crates.io version, not a git fork:
 
 ````toml
-usearch = { version = ">=2.23, <2.24", optional = true }
+usearch = { version = ">=2.23, <2.25", optional = true }
 ````
 
 **Not** a git dependency like:

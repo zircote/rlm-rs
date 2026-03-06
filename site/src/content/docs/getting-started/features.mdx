@@ -48,10 +48,10 @@ cargo build --release --no-default-features
 **What it does:** Enables high-performance vector search using HNSW (Hierarchical Navigable Small World) algorithm.
 
 **Dependencies:**
-- `usearch` crate v2.23.x from crates.io (pinned `<2.24` for Windows compatibility)
+- `usearch` crate v2.23.x–v2.24.x from crates.io (pinned `<2.25`)
 - Requires C++ compiler (C++17 or later)
 
-> **Note:** Version 2.24.0+ is excluded due to Windows compilation issues. See [Troubleshooting](/troubleshooting/troubleshooting/#usearch-version-issues) for details.
+> **Note:** Version 2.25.0+ is excluded pending validation. See [Troubleshooting](/troubleshooting/troubleshooting/#usearch-version-issues) for details.
 
 **Use when:**
 - Working with large document collections (>10,000 chunks)

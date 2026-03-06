@@ -51,7 +51,7 @@ rayon = "1.10"
 fastembed = { version = "5", optional = true, default-features = false, features = ["ort-download-binaries", "hf-hub-rustls-tls"] }
 
 # usearch HNSW vector search (optional - BM25-only fallback if not available)
-# Pinned to <2.24: v2.24.0 has a MAP_FAILED POSIX constant that breaks Windows compilation
+# Pinned to <2.25: v2.24.x is supported since rlm-cli v1.2.4 (move-semantics fix resolved the segfault)
 # See: https://github.com/unum-cloud/USearch/issues/715
 usearch = { version = ">=2.23, <2.25", optional = true }
 
