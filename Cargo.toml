@@ -27,7 +27,7 @@ thiserror = "2.0.17"
 anyhow = "1.0.102"
 
 # CLI
-clap = { version = "4.5", features = ["derive", "cargo", "env"] }
+clap = { version = "4.6", features = ["derive", "cargo", "env"] }
 
 # Database
 rusqlite = { version = "0.38", features = ["bundled", "modern_sqlite"] }
