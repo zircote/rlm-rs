@@ -59,7 +59,7 @@ usearch = { version = ">=2.23, <2.25", optional = true }
 # Testing
 proptest = "1.10.0"
 test-case = "3.3.1"
-tempfile = "3.26"
+tempfile = "3.27"
 assert_cmd = "2.2"
 predicates = "3.1"
 
