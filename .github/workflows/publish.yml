@@ -31,7 +31,7 @@ jobs:
 
       - name: Install cargo-deny
         # yamllint disable-line rule:line-length
-        uses: taiki-e/install-action@cbb1dcaa26e1459e2876c39f61c1e22a1258aac5  # v2.67.18
+        uses: taiki-e/install-action@e9e8e031bcd90cdbe8ac6bb1d376f8596e587fbf  # v2.67.18
         with:
           tool: cargo-deny
 
