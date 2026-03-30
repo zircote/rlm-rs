@@ -57,7 +57,7 @@ usearch = { version = ">=2.23, <2.25", optional = true }
 
 [dev-dependencies]
 # Testing
-proptest = "1.10.0"
+proptest = "1.11.0"
 test-case = "3.3.1"
 tempfile = "3.27"
 assert_cmd = "2.2"
