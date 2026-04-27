@@ -53,7 +53,7 @@ fastembed = { version = "5", optional = true, default-features = false, features
 # usearch HNSW vector search (optional - BM25-only fallback if not available)
 # Pinned to <2.25: v2.24.x is supported since rlm-cli v1.2.4 (move-semantics fix resolved the segfault)
 # See: https://github.com/unum-cloud/USearch/issues/715
-usearch = { version = ">=2.23, <2.25", optional = true }
+usearch = { version = ">=2.23, <2.26", optional = true }
 
 [dev-dependencies]
 # Testing
