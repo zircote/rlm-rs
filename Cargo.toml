@@ -44,7 +44,7 @@ regex = "1.12"
 memmap2 = "0.9"
 
 # Parallel processing
-rayon = "1.10"
+rayon = "1.12"
 
 # FastEmbed for semantic embeddings (optional - fallback to hash-based if not available)
 # Use rustls instead of native-tls (openssl) for TLS
