@@ -129,7 +129,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install cargo-deny
-        uses: taiki-e/install-action@cbb1dcaa26e1459e2876c39f61c1e22a1258aac5 # v2.68.33
+        uses: taiki-e/install-action@fa0dd4cd0a40696e6f9766370614a5ce482e6aa8 # v2.77.5
         with:
           tool: cargo-deny
 
@@ -176,7 +176,7 @@ jobs:
           components: llvm-tools-preview
 
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cbb1dcaa26e1459e2876c39f61c1e22a1258aac5 # v2.68.33
+        uses: taiki-e/install-action@fa0dd4cd0a40696e6f9766370614a5ce482e6aa8 # v2.77.5
         with:
           tool: cargo-llvm-cov
 
@@ -195,7 +195,7 @@ jobs:
         run: cargo llvm-cov --all-features --lcov --output-path lcov.info
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
         with:
           files: lcov.info
           fail_ci_if_error: false
