@@ -207,9 +207,7 @@ impl<C: Chunker + Clone + Send + Sync> Chunker for ParallelChunker<C> {
 // Add num_cpus as a simple function since we can't add dependencies mid-implementation
 mod num_cpus {
     pub fn get() -> usize {
-        std::thread::available_parallelism()
-            .map(std::num::NonZeroUsize::get)
-            .unwrap_or(4)
+        std::thread::available_parallelism().map_or(4, std::num::NonZeroUsize::get)
     }
 }
 
