@@ -7,7 +7,7 @@ description: |
 
 on:
   workflow_run:
-    workflows: ["CI", "Daily Test Improver", "Daily Perf Improver"]  # Monitor CI and daily improver workflows
+    workflows: ["CI"]  # Monitor CI workflow
     types:
       - completed
     branches:

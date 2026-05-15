@@ -40,8 +40,6 @@ name: "CI Failure Doctor"
     - completed
     workflows:
     - CI
-    - Daily Test Improver
-    - Daily Perf Improver
 
 permissions: {}
 
