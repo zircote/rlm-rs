@@ -31,7 +31,7 @@ error: failed to compile `rlm-cli` v1.2.4
 ````bash
 # Check version
 rustc --version
-# Required: 1.88+
+# Required: 1.95+
 
 # Update Rust
 rustup update stable

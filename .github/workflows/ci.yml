@@ -155,9 +155,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-msrv-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-msrv-1.95-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-msrv-
+            ${{ runner.os }}-cargo-msrv-1.95-
 
       - name: Check MSRV
         run: cargo check --all-features --locked

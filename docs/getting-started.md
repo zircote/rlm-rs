@@ -15,7 +15,7 @@ Think of it as a "smart pagination system" that lets AI assistants navigate huge
 
 ## Prerequisites
 
-- **Rust 1.88+** (or use pre-built binaries)
+- **Rust 1.95+** (or use pre-built binaries)
 - **macOS, Linux, or Windows**
 
 ## Installation
