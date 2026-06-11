@@ -22,6 +22,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     without cutting a release
 - **Security**: `SECURITY.md` with vulnerability reporting policy and
   release-artifact verification instructions (`gh attestation verify`)
+- **Release**: CycloneDX SBOM per release (Syft), attested to every binary
+  via `actions/attest-sbom` and verified fail-closed alongside provenance
+- **Release**: `cargo audit` gate — a release publishes nothing if any
+  dependency carries a known vulnerability
+- **Release**: `rlm-cli-{version}-checksums.txt` asset with SHA-256 digests
+  of all release artifacts
+- **Release**: crates.io publishing now uses Trusted Publishing (OIDC) via
+  `rust-lang/crates-io-auth-action` instead of a long-lived registry token
+  (requires one-time Trusted Publishing setup on crates.io before the next
+  release)
 
 ### Security
 

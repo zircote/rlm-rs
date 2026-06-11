@@ -32,3 +32,21 @@ A successful verification prints `✓ Verification succeeded!` and confirms
 the binary is byte-identical to what GitHub Actions built from this
 repository. Verification fails closed if the file was modified, rebuilt
 elsewhere, or attested by any other repository or workflow.
+
+### SBOM
+
+Each release ships a CycloneDX SBOM (`rlm-cli-<version>-sbom.cdx.json`)
+generated with Syft, and every binary carries an SBOM attestation binding
+it to that SBOM. To verify:
+
+```sh
+gh attestation verify rlm-cli-<version>-<platform> --repo zircote/rlm-rs \
+  --predicate-type https://cyclonedx.org/bom
+```
+
+### Checksums
+
+`rlm-cli-<version>-checksums.txt` lists SHA-256 digests of every release
+asset for quick integrity checks (`sha256sum -c`). Checksums are a
+convenience; the attestations above are the authoritative, fail-closed
+verification path.
