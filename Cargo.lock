@@ -722,9 +722,9 @@ checksum = "7360491ce676a36bf9bb3c56c1aa791658183a54d2744120f27285738d90465a"
 
 [[package]]
 name = "fastembed"
-version = "5.15.0"
+version = "5.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c65faeb787d66e812248f992693268eee8a43a95e3e43e0c33547f1c8391ecce"
+checksum = "add59222e7bc3787285f993744b244cd454d78571845623606bdc45b22b23a4e"
 dependencies = [
  "anyhow",
  "hf-hub",
@@ -916,12 +916,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "hashlink"
-version = "0.11.0"
+name = "hashbrown"
+version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea0b22561a9c04a7cb1a302c013e0259cd3b4bb619f145b32f72b8b4bcbed230"
+checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 dependencies = [
- "hashbrown",
+ "foldhash",
+]
+
+[[package]]
+name = "hashlink"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5081f264ed7adee96ea4b4778b6bb9da0a7228b084587aa3bd3ff05da7c5a3b"
+dependencies = [
+ "hashbrown 0.17.1",
 ]
 
 [[package]]
@@ -1172,7 +1181,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7714e70437a7dc3ac8eb7e6f8df75fd8eb422675fc7678aff7364301092b1017"
 dependencies = [
  "equivalent",
- "hashbrown",
+ "hashbrown 0.16.1",
 ]
 
 [[package]]
@@ -1262,9 +1271,9 @@ dependencies = [
 
 [[package]]
 name = "libsqlite3-sys"
-version = "0.38.0"
+version = "0.38.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a76001fb4daed01e5f2b518aac0b4dc592e7c734da63dbffcf0c64fa612a8d0c"
+checksum = "f6c19a05435c21ac299d71b6a9c13db3e3f47c520517d58990a462a1397a61db"
 dependencies = [
  "cc",
  "pkg-config",
@@ -2060,15 +2069,15 @@ version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8a1f2315036ef6b1fbacd1972e8ee7688030b0a2121edfc2a6550febd41574d"
 dependencies = [
- "hashbrown",
+ "hashbrown 0.16.1",
  "thiserror",
 ]
 
 [[package]]
 name = "rusqlite"
-version = "0.40.0"
+version = "0.40.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b3492ea85308705c3a5cc24fb9b9cf77273d30590349070db42991202b214c4"
+checksum = "11438310b19e3109b6446c33d1ed5e889428cf2e278407bc7896bc4aaea43323"
 dependencies = [
  "bitflags",
  "fallible-iterator",
@@ -2164,7 +2173,7 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "675656c1eabb620b921efea4f9199f97fc86e36dd6ffd1fbbe48d0f59a4987f5"
 dependencies = [
- "hashbrown",
+ "hashbrown 0.16.1",
  "serde",
  "serde_json",
 ]
