@@ -1,21 +1,23 @@
-version: 2
 updates:
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-    labels:
-      - "type/chore"
-      - "area/ci"
-    commit-message:
-      prefix: "ci"
-  - package-ecosystem: "cargo"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-    labels:
-      - "type/chore"
-    commit-message:
-      prefix: "deps"
+- commit-message:
+    prefix: ci
+  directory: /
+  ignore:
+  - dependency-name: "github/gh-aw-actions" # Managed by gh aw compile. Version-locked to the gh-aw compiler; do not bump.
+  labels:
+  - type/chore
+  - area/ci
+  package-ecosystem: github-actions
+  schedule:
+    day: monday
+    interval: weekly
+- commit-message:
+    prefix: deps
+  directory: /
+  labels:
+  - type/chore
+  package-ecosystem: cargo
+  schedule:
+    day: monday
+    interval: weekly
+version: 2
