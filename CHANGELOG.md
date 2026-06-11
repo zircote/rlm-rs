@@ -35,6 +35,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- **Dependencies**: update quinn-proto 0.11.13 → 0.11.14 in the lockfile
+  (RUSTSEC-2026-0037); the entry was an unreachable phantom resolution — no
+  shipped binary included the vulnerable code — but the audit gate flags it
+- **Supply chain**: align `deny.toml` `[graph] targets` with the release
+  matrix (adds `aarch64-unknown-linux-gnu`, `x86_64-pc-windows-msvc`) so
+  cargo-deny analyzes every shipped platform's dependency graph
 - **CI**: `pin-check` job (central `zircote/.github` reusable workflow)
   asserts every GitHub Actions `uses:` reference is pinned to a full
   40-character commit SHA
