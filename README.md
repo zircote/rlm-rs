@@ -1,7 +1,7 @@
 # rlm-rs
 
 [![CI](https://github.com/zircote/rlm-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/zircote/rlm-rs/actions/workflows/ci.yml)
-[![Rust Version](https://img.shields.io/badge/rust-1.88%2B-dea584?logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![Rust Version](https://img.shields.io/badge/rust-1.95%2B-dea584?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 Recursive Language Model (RLM) CLI for Claude Code - handles long-context tasks via chunking and recursive sub-LLM calls.
@@ -145,7 +145,7 @@ rlm-cli is designed to work with the [rlm-rs Claude Code plugin](https://github.
 
 ### Prerequisites
 
-- Rust 1.88+ (2024 edition)
+- Rust 1.95+ (2024 edition)
 - [cargo-deny](https://github.com/EmbarkStudios/cargo-deny) for supply chain security
 
 ### Build
@@ -184,7 +184,7 @@ tests/
 
 ## MSRV Policy
 
-The Minimum Supported Rust Version (MSRV) is **1.88**.
+The Minimum Supported Rust Version (MSRV) is **1.95**.
 
 ## License
 

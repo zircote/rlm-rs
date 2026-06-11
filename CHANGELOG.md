@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Build**: Bump MSRV to 1.95 — libsqlite3-sys 0.38.1 (via the rusqlite
+  0.40.1 bump) uses `cfg_select!`, stabilized in Rust 1.95; the MSRV CI job
+  now also passes `--locked` so it checks the dependency versions that
+  actually ship
+
 - **Documentation**: Enhanced troubleshooting guide with usearch version pinning details
   - Documented the `<2.25` version constraint; usearch v2.24.x is supported since rlm-cli v1.2.4
   - Added troubleshooting section for usearch version issues
