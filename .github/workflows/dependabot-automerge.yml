@@ -16,5 +16,6 @@ permissions:
 
 jobs:
   automerge:
-    uses: zircote/.github/.github/workflows/reusable-dependabot-automerge.yml@main
+    # yamllint disable-line rule:line-length
+    uses: zircote/.github/.github/workflows/reusable-dependabot-automerge.yml@e8f0dbde068cc0701e443e7b8d57ae9917de7da3  # main
     secrets: inherit

@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Release**: Attested delivery — releases now publish platform binaries
+  (`rlm-cli-{version}-{platform}` for linux-amd64, linux-arm64, macos-amd64,
+  macos-arm64, windows-amd64.exe), each carrying SLSA build provenance via
+  `actions/attest-build-provenance`
+  - Release publication is gated on fail-closed attestation verification —
+    a tag publishes nothing unattested
+  - `workflow_dispatch` dry-run exercises the build → attest → verify chain
+    without cutting a release
+- **Security**: `SECURITY.md` with vulnerability reporting policy and
+  release-artifact verification instructions (`gh attestation verify`)
+
+### Security
+
+- **CI**: `pin-check` job (central `zircote/.github` reusable workflow)
+  asserts every GitHub Actions `uses:` reference is pinned to a full
+  40-character commit SHA
+- **CI**: pinned the two remaining mutable action refs
+  (`github/gh-aw/actions/setup@v0.77.5`,
+  `reusable-dependabot-automerge.yml@main`) to commit SHAs
+
 ### Changed
 
 - **Build**: Bump MSRV to 1.95 — libsqlite3-sys 0.38.1 (via the rusqlite
