@@ -46,7 +46,7 @@ Three options:
 ### What are the system requirements?
 
 - **OS**: macOS, Linux, or Windows
-- **Rust**: 1.88+ (if building from source)
+- **Rust**: 1.95+ (if building from source)
 - **Disk**: ~50MB for binaries + embeddings model
 - **Memory**: 512MB minimum, 2GB+ recommended for large files
 
