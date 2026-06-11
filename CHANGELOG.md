@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   via `actions/attest-sbom` and verified fail-closed alongside provenance
 - **Release**: `cargo audit` gate — a release publishes nothing if any
   dependency carries a known vulnerability
+- **Release**: test gate — tags are not guaranteed to point at CI-green
+  commits, so the release workflow runs the full test suite and publishes
+  nothing untested
 - **Release**: `rlm-cli-{version}-checksums.txt` asset with SHA-256 digests
   of all release artifacts
 - **Release**: crates.io publishing now uses Trusted Publishing (OIDC) via
