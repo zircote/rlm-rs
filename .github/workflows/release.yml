@@ -60,9 +60,9 @@ jobs:
           - os: ubuntu-24.04-arm
             platform: linux-arm64
             ext: ""
-          - os: macos-15-intel
-            platform: macos-amd64
-            ext: ""
+          # macos-amd64 is intentionally absent: ort (onnxruntime, via the
+          # default fastembed feature) ships no prebuilt binaries for
+          # x86_64-apple-darwin, so Intel macOS cannot build this crate.
           - os: macos-latest
             platform: macos-arm64
             ext: ""
@@ -131,10 +131,10 @@ jobs:
           set -euo pipefail
           shopt -s nullglob
           files=(dist/*)
-          # All five platform binaries must be present — a partial set
+          # Every platform binary must be present — a partial set
           # must never reach the release.
-          if [ "${#files[@]}" -ne 5 ]; then
-            echo "::error::expected 5 artifacts, found ${#files[@]}"
+          if [ "${#files[@]}" -ne 4 ]; then
+            echo "::error::expected 4 artifacts, found ${#files[@]}"
             exit 1
           fi
           for f in "${files[@]}"; do

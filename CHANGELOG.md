@@ -10,9 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Release**: Attested delivery — releases now publish platform binaries
-  (`rlm-cli-{version}-{platform}` for linux-amd64, linux-arm64, macos-amd64,
-  macos-arm64, windows-amd64.exe), each carrying SLSA build provenance via
+  (`rlm-cli-{version}-{platform}` for linux-amd64, linux-arm64, macos-arm64,
+  windows-amd64.exe), each carrying SLSA build provenance via
   `actions/attest-build-provenance`
+  - macos-amd64 is not published: ort (onnxruntime, via the default
+    fastembed feature) provides no prebuilt binaries for
+    `x86_64-apple-darwin`
   - Release publication is gated on fail-closed attestation verification —
     a tag publishes nothing unattested
   - `workflow_dispatch` dry-run exercises the build → attest → verify chain

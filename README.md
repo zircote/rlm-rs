@@ -1,6 +1,10 @@
 # rlm-rs
 
 [![CI](https://github.com/zircote/rlm-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/zircote/rlm-rs/actions/workflows/ci.yml)
+[![Release](https://github.com/zircote/rlm-rs/actions/workflows/release.yml/badge.svg)](https://github.com/zircote/rlm-rs/actions/workflows/release.yml)
+[![SLSA Build Provenance](https://img.shields.io/badge/SLSA-build_provenance-FF6740)](https://github.com/zircote/rlm-rs/attestations)
+[![Attested Releases](https://img.shields.io/badge/releases-attested_%26_verified-2ea44f?logo=github&logoColor=white)](https://github.com/zircote/rlm-rs/blob/main/SECURITY.md#verifying-release-artifacts)
+[![Actions Pinned](https://img.shields.io/badge/actions-SHA--pinned-blue)](https://github.com/zircote/rlm-rs/blob/main/.github/workflows/ci.yml)
 [![Rust Version](https://img.shields.io/badge/rust-1.95%2B-dea584?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -51,6 +55,18 @@ git clone https://github.com/zircote/rlm-rs.git
 cd rlm-rs
 make install
 ```
+
+### Verify a Release Binary
+
+Every release binary carries [SLSA build provenance](https://slsa.dev/spec/v1.0/provenance),
+and releases only publish after fail-closed attestation verification. To verify a
+download yourself:
+
+```bash
+gh attestation verify rlm-cli-<version>-<platform> --repo zircote/rlm-rs
+```
+
+See [SECURITY.md](SECURITY.md#verifying-release-artifacts) for details.
 
 ## Quick Start
 
