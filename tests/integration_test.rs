@@ -182,13 +182,14 @@ mod search_tests {
     };
 
     /// Returns the embedder, or `None` when the embedding model cannot be
-    /// loaded. Model retrieval is network-dependent (Hugging Face download),
-    /// so an offline or rate-limited environment skips instead of failing.
+    /// loaded. `create_embedder()` is lazy — the network-dependent Hugging
+    /// Face model download happens on the first `embed()` call — so the
+    /// helper forces one tiny embedding and treats any failure as a skip.
     // allow-print-in-tests only covers #[test]-marked items; this helper
     // is plain test-support code, so the lint needs an explicit allow.
     #[allow(clippy::print_stderr)]
     fn embedder_or_skip(test: &str) -> Option<Box<dyn Embedder>> {
-        match create_embedder() {
+        match create_embedder().and_then(|e| e.embed("warmup probe").map(|_| e)) {
             Ok(embedder) => Some(embedder),
             Err(err) => {
                 eprintln!("skipping {test}: embedding model unavailable: {err}");

@@ -125,15 +125,34 @@ mod tests {
     use super::*;
 
     /// Returns the embedder, or `None` when the embedding model cannot be
-    /// loaded. Model retrieval is network-dependent (Hugging Face download),
-    /// so an offline or rate-limited environment skips instead of failing.
+    /// loaded. `create_embedder()` is lazy — the network-dependent Hugging
+    /// Face model download happens on the first `embed()` call — so the
+    /// helper forces one tiny embedding and treats any failure as a skip.
     fn embedder_or_skip(test: &str) -> Option<Box<dyn Embedder>> {
-        match create_embedder() {
+        match create_embedder().and_then(|e| e.embed("warmup probe").map(|_| e)) {
             Ok(embedder) => Some(embedder),
             Err(err) => {
                 eprintln!("skipping {test}: embedding model unavailable: {err}");
                 None
             }
+        }
+    }
+
+    /// Minimal embedder that does NOT override `embed_batch`, so tests can
+    /// exercise the default trait implementation deterministically.
+    struct StubEmbedder;
+
+    impl Embedder for StubEmbedder {
+        fn dimensions(&self) -> usize {
+            3
+        }
+
+        fn model_name(&self) -> &'static str {
+            "stub"
+        }
+
+        fn embed(&self, _text: &str) -> Result<Vec<f32>> {
+            Ok(vec![1.0, 2.0, 3.0])
         }
     }
 
@@ -187,10 +206,9 @@ mod tests {
 
     #[test]
     fn test_embed_batch_default_impl() {
-        // Test the default embed_batch implementation (lines 62-63)
-        let Some(embedder) = embedder_or_skip("test_embed_batch_default_impl") else {
-            return;
-        };
+        // StubEmbedder does not override embed_batch, so this exercises the
+        // default trait implementation — deterministically, no model needed.
+        let embedder = StubEmbedder;
         let texts = vec!["hello", "world", "test"];
         let embeddings = embedder.embed_batch(&texts).unwrap();
 
@@ -202,10 +220,8 @@ mod tests {
 
     #[test]
     fn test_embed_batch_empty() {
-        // Test embed_batch with empty slice
-        let Some(embedder) = embedder_or_skip("test_embed_batch_empty") else {
-            return;
-        };
+        // Default embed_batch with an empty slice — deterministic via stub.
+        let embedder = StubEmbedder;
         let texts: Vec<&str> = vec![];
         let embeddings = embedder.embed_batch(&texts).unwrap();
         assert!(embeddings.is_empty());
