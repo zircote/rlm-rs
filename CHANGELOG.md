@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Tooling**: project-local `/release` Claude Code skill
+  (`.claude/skills/release/`) — orchestrates the full attested release
+  (`/release v<X.Y.Z>` or `/release patch|minor|major`): prep PR, tag,
+  chain monitoring, failure playbook, and independent workstation
+  verification
+
 ## [1.3.1] - 2026-06-12
 
 ### Fixed
