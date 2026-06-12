@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Release**: Homebrew formula updates now trigger via `workflow_run` on
+  the Release workflow — releases are authored by `github-actions[bot]`
+  (the tap token is scoped to the tap repo only), and bot-authored release
+  events never trigger workflows, so the formula silently stopped updating;
+  the formula commit is also idempotent now that two triggers are wired
+
 ### Added
 
 - **Release**: the published crates.io `.crate` archive now carries SLSA
