@@ -138,8 +138,15 @@ export function generateDocsPages(outputBase) {
     const extractedTitle = extractTitle(stripped);
     const frontmatter = buildFrontmatter(page, extractedTitle);
 
-    // Strip HTML comments which are invalid in MDX
-    let body = stripped.replace(/<!--[\s\S]*?-->/g, "");
+    // Strip HTML comments which are invalid in MDX.
+    // Re-apply until stable so overlapping matches can't leave a residual <!--;
+    // unterminated comments strip to end of input, matching HTML semantics
+    let body = stripped;
+    let prevBody;
+    do {
+      prevBody = body;
+      body = body.replace(/<!--[\s\S]*?(?:-->|$)/g, "");
+    } while (body !== prevBody);
     // Strip image references to non-existent local files
     body = body.replace(/!\[([^\]]*)\]\((?!https?:\/\/)([^)]+)\)\n*/g, "");
     // Rewrite markdown links to Starlight URLs
