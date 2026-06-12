@@ -7,8 +7,8 @@ abstract: >-
   tasks via chunking and recursive sub-LLM calls. Implements hybrid semantic
   and BM25 search with Reciprocal Rank Fusion, code-aware chunking, and
   pass-by-reference chunk retrieval for efficient subagent processing.
-version: 1.2.4
-date-released: 2026-02-08
+version: 1.3.0
+date-released: 2026-06-12
 license: MIT
 url: "https://github.com/zircote/rlm-rs"
 repository-code: "https://github.com/zircote/rlm-rs"
@@ -33,8 +33,8 @@ preferred-citation:
   abstract: >-
     Recursive Language Model (RLM) CLI for Claude Code - handles long-context
     tasks via chunking and recursive sub-LLM calls.
-  version: 1.2.4
-  date-released: 2026-02-08
+  version: 1.3.0
+  date-released: 2026-06-12
   license: MIT
   url: "https://github.com/zircote/rlm-rs"
   repository-code: "https://github.com/zircote/rlm-rs"
