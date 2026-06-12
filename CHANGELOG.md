@@ -47,9 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CI**: `pin-check` job (central `zircote/.github` reusable workflow)
   asserts every GitHub Actions `uses:` reference is pinned to a full
   40-character commit SHA
-- **CI**: pinned the two remaining mutable action refs
-  (`github/gh-aw/actions/setup@v0.77.5`,
-  `reusable-dependabot-automerge.yml@main`) to commit SHAs
+- **CI**: pinned the remaining mutable workflow ref
+  (`reusable-dependabot-automerge.yml@main`) to a commit SHA
 
 ### Changed
 
