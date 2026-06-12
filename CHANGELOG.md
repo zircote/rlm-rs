@@ -7,8 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Site**: restore docs site build — Starlight 0.39 removed labeled
+  `autogenerate` sidebar groups; the "Workflow Reference" group now nests
+  the autogenerate config in `items` (broken since the auto-merged
+  Starlight 0.40 bump, which no CI gate builds the site to catch)
+- **Tests**: embedding tests skip gracefully when the BGE-M3 model cannot
+  be downloaded (network-dependent Hugging Face fetch) instead of failing
+  the suite — this intermittently broke CI on main
+
 ### Added
 
+- **CI**: `site` job builds the docs site on every push/PR and gates
+  `All Checks Pass` — site-dependency bumps can no longer automerge with
+  a broken build
 - **Release**: Attested delivery — releases now publish platform binaries
   (`rlm-cli-{version}-{platform}` for linux-amd64, linux-arm64, macos-arm64,
   windows-amd64.exe), each carrying SLSA build provenance via
@@ -38,6 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- **Dependencies**: update npm `uuid` to 14.0.0 in the docs site lockfile
+  (CVE-2026-41907 / GHSA-w5hq-g745-h8pq, fixed ≥ 11.1.1)
 - **Dependencies**: update quinn-proto 0.11.13 → 0.11.14 in the lockfile
   (RUSTSEC-2026-0037); the entry was an unreachable phantom resolution — no
   shipped binary included the vulnerable code — but the audit gate flags it
