@@ -85,14 +85,19 @@ jobs:
           VERSION="${GITHUB_REF#refs/tags/v}"
           CRATE="rlm-cli-${VERSION}.crate"
           URL="https://static.crates.io/crates/rlm-cli/${CRATE}"
+          downloaded=0
           for attempt in 1 2 3 4 5 6; do
             if curl -fsSL -o "${CRATE}" "$URL"; then
+              downloaded=1
               break
             fi
             echo "crate not yet on CDN (attempt ${attempt}); retrying"
             sleep 10
           done
-          test -s "${CRATE}"
+          if [ "$downloaded" -ne 1 ] || [ ! -s "${CRATE}" ]; then
+            echo "::error::failed to download ${URL} after 6 attempts"
+            exit 1
+          fi
           LOCAL="target/package/${CRATE}"
           if [ ! -f "$LOCAL" ]; then
             echo "::error::locally packaged crate missing: ${LOCAL}"
