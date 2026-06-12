@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Release**: the published crates.io `.crate` archive now carries SLSA
+  build provenance — the workflow downloads the registry-served bytes,
+  asserts they match the locally packaged crate, and attests them;
+  verification instructions added to `SECURITY.md`
+
 ## [1.3.0] - 2026-06-12
 
 ### Fixed

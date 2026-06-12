@@ -20,8 +20,10 @@ jobs:
     environment: copilot
     permissions:
       contents: read
-      # OIDC for crates.io Trusted Publishing
+      # OIDC for crates.io Trusted Publishing and .crate attestation signing
       id-token: write
+      # Provenance attestation for the published .crate
+      attestations: write
     steps:
       - name: Checkout repository
         # yamllint disable-line rule:line-length
@@ -70,3 +72,43 @@ jobs:
         run: cargo publish --token "$CARGO_REGISTRY_TOKEN"
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+
+      # Attest the bytes the registry actually serves, not a local rebuild:
+      # download the published .crate, assert it matches what cargo packaged
+      # locally (cargo packaging is deterministic for a given commit — a
+      # mismatch means something is wrong and must fail loudly), then attach
+      # SLSA provenance to it.
+      - name: Download published crate from registry
+        id: crate
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          CRATE="rlm-cli-${VERSION}.crate"
+          URL="https://static.crates.io/crates/rlm-cli/${CRATE}"
+          for attempt in 1 2 3 4 5 6; do
+            if curl -fsSL -o "${CRATE}" "$URL"; then
+              break
+            fi
+            echo "crate not yet on CDN (attempt ${attempt}); retrying"
+            sleep 10
+          done
+          test -s "${CRATE}"
+          LOCAL="target/package/${CRATE}"
+          if [ ! -f "$LOCAL" ]; then
+            echo "::error::locally packaged crate missing: ${LOCAL}"
+            exit 1
+          fi
+          sha_remote=$(sha256sum "${CRATE}" | cut -d' ' -f1)
+          sha_local=$(sha256sum "$LOCAL" | cut -d' ' -f1)
+          if [ "$sha_remote" != "$sha_local" ]; then
+            echo "::error::registry crate bytes differ from local package"
+            exit 1
+          fi
+          echo "crate-path=${CRATE}" >> "$GITHUB_OUTPUT"
+
+      - name: Attest crate provenance
+        if: startsWith(github.ref, 'refs/tags/v')
+        # yamllint disable-line rule:line-length
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32  # v4.1.0
+        with:
+          subject-path: ${{ steps.crate.outputs.crate-path }}
