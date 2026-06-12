@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Release**: Attested delivery — releases now publish platform binaries
+  (`rlm-cli-{version}-{platform}` for linux-amd64, linux-arm64, macos-arm64,
+  windows-amd64.exe), each carrying SLSA build provenance via
+  `actions/attest-build-provenance`
+  - macos-amd64 is not published: ort (onnxruntime, via the default
+    fastembed feature) provides no prebuilt binaries for
+    `x86_64-apple-darwin`
+  - Release publication is gated on fail-closed attestation verification —
+    a tag publishes nothing unattested
+  - `workflow_dispatch` dry-run exercises the build → attest → verify chain
+    without cutting a release
+- **Security**: `SECURITY.md` with vulnerability reporting policy and
+  release-artifact verification instructions (`gh attestation verify`)
+- **Release**: CycloneDX SBOM per release (Syft), attested to every binary
+  via `actions/attest-sbom` and verified fail-closed alongside provenance
+- **Release**: `cargo audit` gate — a release publishes nothing if any
+  dependency carries a known vulnerability
+- **Release**: test gate — tags are not guaranteed to point at CI-green
+  commits, so the release workflow runs the full test suite and publishes
+  nothing untested
+- **Release**: `rlm-cli-{version}-checksums.txt` asset with SHA-256 digests
+  of all release artifacts
+- **Release**: crates.io publishing now uses Trusted Publishing (OIDC) via
+  `rust-lang/crates-io-auth-action` instead of a long-lived registry token
+  (requires one-time Trusted Publishing setup on crates.io before the next
+  release)
+
+### Security
+
+- **Dependencies**: update quinn-proto 0.11.13 → 0.11.14 in the lockfile
+  (RUSTSEC-2026-0037); the entry was an unreachable phantom resolution — no
+  shipped binary included the vulnerable code — but the audit gate flags it
+- **Supply chain**: align `deny.toml` `[graph] targets` with the release
+  matrix (adds `aarch64-unknown-linux-gnu`, `x86_64-pc-windows-msvc`) so
+  cargo-deny analyzes every shipped platform's dependency graph
+- **CI**: `pin-check` job (central `zircote/.github` reusable workflow)
+  asserts every GitHub Actions `uses:` reference is pinned to a full
+  40-character commit SHA
+- **CI**: pinned the remaining mutable workflow ref
+  (`reusable-dependabot-automerge.yml@main`) to a commit SHA
+
 ### Changed
 
 - **Build**: Bump MSRV to 1.95 — libsqlite3-sys 0.38.1 (via the rusqlite

@@ -203,10 +203,18 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+  pin-check:
+    # Central reusable workflow: every `uses:` must be pinned to a 40-char SHA.
+    # Required-check context name: "pin-check / pin-check"
+    permissions:
+      contents: read
+    # yamllint disable-line rule:line-length
+    uses: zircote/.github/.github/workflows/pin-check.yml@e8f0dbde068cc0701e443e7b8d57ae9917de7da3  # main
+
   all-checks-pass:
     name: All Checks Pass
     if: always()
-    needs: [fmt, clippy, test, doc, deny, msrv]
+    needs: [fmt, clippy, test, doc, deny, msrv, pin-check]
     runs-on: ubuntu-latest
     steps:
       - name: Check all jobs passed
@@ -217,13 +225,15 @@ jobs:
           DOC_RESULT: ${{ needs.doc.result }}
           DENY_RESULT: ${{ needs.deny.result }}
           MSRV_RESULT: ${{ needs.msrv.result }}
+          PIN_CHECK_RESULT: ${{ needs.pin-check.result }}
         run: |
           if [[ "$FMT_RESULT" != "success" ]] || \
              [[ "$CLIPPY_RESULT" != "success" ]] || \
              [[ "$TEST_RESULT" != "success" ]] || \
              [[ "$DOC_RESULT" != "success" ]] || \
              [[ "$DENY_RESULT" != "success" ]] || \
-             [[ "$MSRV_RESULT" != "success" ]]; then
+             [[ "$MSRV_RESULT" != "success" ]] || \
+             [[ "$PIN_CHECK_RESULT" != "success" ]]; then
             echo "One or more jobs failed"
             exit 1
           fi
