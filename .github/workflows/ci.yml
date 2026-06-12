@@ -203,6 +203,36 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+  site:
+    # The docs site only builds at deploy time otherwise — a breaking
+    # site-dependency bump (e.g. the Starlight 0.40 automerge) lands
+    # silently without this gate. Mirrors docs-deploy's build steps,
+    # minus rustdoc embedding (covered by the doc job).
+    name: Site Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        # yamllint disable-line rule:line-length
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+
+      - name: Setup Node.js
+        # yamllint disable-line rule:line-length
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with:
+          node-version: '22'
+
+      - name: Install site dependencies
+        working-directory: site
+        run: npm ci
+
+      - name: Generate content
+        working-directory: site
+        run: npm run generate
+
+      - name: Build Astro site
+        working-directory: site
+        run: npx astro build --site https://zircote.github.io/rlm-rs
+
   pin-check:
     # Central reusable workflow: every `uses:` must be pinned to a 40-char SHA.
     # Required-check context name: "pin-check / pin-check"
@@ -214,7 +244,7 @@ jobs:
   all-checks-pass:
     name: All Checks Pass
     if: always()
-    needs: [fmt, clippy, test, doc, deny, msrv, pin-check]
+    needs: [fmt, clippy, test, doc, deny, msrv, site, pin-check]
     runs-on: ubuntu-latest
     steps:
       - name: Check all jobs passed
@@ -225,6 +255,7 @@ jobs:
           DOC_RESULT: ${{ needs.doc.result }}
           DENY_RESULT: ${{ needs.deny.result }}
           MSRV_RESULT: ${{ needs.msrv.result }}
+          SITE_RESULT: ${{ needs.site.result }}
           PIN_CHECK_RESULT: ${{ needs.pin-check.result }}
         run: |
           if [[ "$FMT_RESULT" != "success" ]] || \
@@ -233,6 +264,7 @@ jobs:
              [[ "$DOC_RESULT" != "success" ]] || \
              [[ "$DENY_RESULT" != "success" ]] || \
              [[ "$MSRV_RESULT" != "success" ]] || \
+             [[ "$SITE_RESULT" != "success" ]] || \
              [[ "$PIN_CHECK_RESULT" != "success" ]]; then
             echo "One or more jobs failed"
             exit 1

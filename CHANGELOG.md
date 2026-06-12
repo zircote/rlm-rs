@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CI**: `site` job builds the docs site on every push/PR and gates
+  `All Checks Pass` — site-dependency bumps can no longer automerge with
+  a broken build
 - **Release**: Attested delivery — releases now publish platform binaries
   (`rlm-cli-{version}-{platform}` for linux-amd64, linux-arm64, macos-arm64,
   windows-amd64.exe), each carrying SLSA build provenance via
