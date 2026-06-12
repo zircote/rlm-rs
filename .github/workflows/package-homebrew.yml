@@ -2,6 +2,12 @@
 name: Homebrew Package
 
 "on":
+  # workflow_run is the reliable trigger: releases are authored by
+  # github-actions[bot] (HOMEBREW_TAP_TOKEN is scoped to the tap repo
+  # only), and bot-authored release events do not trigger workflows.
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
   release:
     types: [published]
   workflow_dispatch:
@@ -22,6 +28,13 @@ jobs:
     name: Update Homebrew Formula
     runs-on: macos-latest
     environment: copilot
+    # workflow_run fires for every Release completion, including branch
+    # dry-runs — only proceed for successful tag runs (head_branch is the
+    # tag name for tag-triggered runs).
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       startsWith(github.event.workflow_run.head_branch, 'v'))
 
     steps:
       - name: Checkout homebrew tap
@@ -37,12 +50,15 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RUN_TAG: ${{ github.event.workflow_run.head_branch }}
           INPUT_VERSION: ${{ github.event.inputs.version }}
           REPO: ${{ github.repository }}
         run: |
           if [ "$EVENT_NAME" = "release" ]; then
             VERSION="$RELEASE_TAG"
             VERSION="${VERSION#v}"
+          elif [ "$EVENT_NAME" = "workflow_run" ]; then
+            VERSION="${RUN_TAG#v}"
           else
             VERSION="$INPUT_VERSION"
           fi
@@ -104,8 +120,14 @@ jobs:
             "github-actions[bot]@users.noreply.github.com"
 
           git add Formula/rlm-cli.rb
-          git commit -m "rlm-cli: update to ${VERSION}"
-          git push
+          # Idempotent: with both workflow_run and release triggers wired,
+          # a second firing for the same version must be a no-op.
+          if git diff --staged --quiet; then
+            echo "Formula already up to date for ${VERSION}; nothing to push"
+          else
+            git commit -m "rlm-cli: update to ${VERSION}"
+            git push
+          fi
 
       - name: Show formula (dry run)
         if: github.event.inputs.dry_run == 'true'
