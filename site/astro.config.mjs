@@ -153,7 +153,7 @@ export default defineConfig({
             {
               label: "Workflow Reference",
               collapsed: true,
-              autogenerate: { directory: "workflows" },
+              items: [{ autogenerate: { directory: "workflows" } }],
             },
           ],
         },
