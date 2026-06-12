@@ -116,9 +116,15 @@ function extractSection(content, heading) {
 
   // Strip trailing HR separators (with possible blank lines) and HTML comments
   let cleaned = body.trim();
-  cleaned = cleaned.replace(/(\n\s*)*---\s*$/, "").trim();
-  cleaned = cleaned.replace(/<!--[\s\S]*?-->/g, "").trim();
-  return cleaned;
+  cleaned = cleaned.replace(/\s*---\s*$/, "").trim();
+  // Re-apply until stable so overlapping matches can't leave a residual <!--;
+  // unterminated comments strip to end of input, matching HTML semantics
+  let prev;
+  do {
+    prev = cleaned;
+    cleaned = cleaned.replace(/<!--[\s\S]*?(?:-->|$)/g, "");
+  } while (cleaned !== prev);
+  return cleaned.trim();
 }
 
 /**
