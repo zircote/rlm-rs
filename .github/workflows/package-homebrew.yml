@@ -37,7 +37,10 @@ jobs:
        startsWith(github.event.workflow_run.head_branch, 'v'))
 
     steps:
+      # Dry-runs never touch the tap repo, so previewing a formula
+      # requires neither HOMEBREW_TAP_TOKEN nor an existing tap.
       - name: Checkout homebrew tap
+        if: github.event.inputs.dry_run != 'true'
         # yamllint disable-line rule:line-length
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
@@ -69,8 +72,10 @@ jobs:
           SRC_URL="${SRC_URL}/archive/refs/tags"
           SRC_URL="${SRC_URL}/v${VERSION}.tar.gz"
 
-          # Compute SHA256
-          SRC_SHA=$(curl -sL "$SRC_URL" \
+          # Compute SHA256 — fail loudly on any download error so the
+          # formula can never carry a hash of an error response.
+          set -euo pipefail
+          SRC_SHA=$(curl -fsSL "$SRC_URL" \
             | shasum -a 256 | awk '{print $1}')
 
           echo "src_url=$SRC_URL" >> "$GITHUB_OUTPUT"
@@ -83,7 +88,8 @@ jobs:
           SRC_URL: ${{ steps.release.outputs.src_url }}
           SRC_SHA: ${{ steps.release.outputs.src_sha }}
         run: |
-          cat > homebrew-tap/Formula/rlm-cli.rb << FORMULA
+          mkdir -p formula-out
+          cat > formula-out/rlm-cli.rb << FORMULA
           class RlmCli < Formula
             desc "Recursive Language Model CLI for Claude Code"
             homepage "https://github.com/${REPO}"
@@ -111,10 +117,12 @@ jobs:
 
       - name: Commit and push formula
         if: github.event.inputs.dry_run != 'true'
-        working-directory: homebrew-tap
         env:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
+          mkdir -p homebrew-tap/Formula
+          cp formula-out/rlm-cli.rb homebrew-tap/Formula/
+          cd homebrew-tap
           git config user.name "github-actions[bot]"
           git config user.email \
             "github-actions[bot]@users.noreply.github.com"
@@ -133,4 +141,4 @@ jobs:
         if: github.event.inputs.dry_run == 'true'
         run: |
           echo "=== rlm-cli.rb (source) ==="
-          cat homebrew-tap/Formula/rlm-cli.rb
+          cat formula-out/rlm-cli.rb

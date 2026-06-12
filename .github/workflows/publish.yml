@@ -46,12 +46,26 @@ jobs:
           cargo package --list
           cargo package --allow-dirty
 
+      # cargo publish ships the Cargo.toml version regardless of the tag;
+      # publishing is irreversible, so a mismatch must fail before publish.
+      - name: Assert tag version matches Cargo.toml
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          CARGO_VERSION=$(cargo metadata --no-deps --format-version 1 \
+            | jq -r '.packages[0].version')
+          if [ "$TAG_VERSION" != "$CARGO_VERSION" ]; then
+            echo "::error::tag v${TAG_VERSION} does not match" \
+              "Cargo.toml version ${CARGO_VERSION}"
+            exit 1
+          fi
+
       - name: Run pre-publish checks
         run: |
           cargo fmt -- --check
-          cargo clippy --all-targets --all-features -- -D warnings
-          cargo test --all-features
-          cargo doc --no-deps --all-features
+          cargo clippy --all-targets --all-features --locked -- -D warnings
+          cargo test --all-features --locked
+          cargo doc --no-deps --all-features --locked
           cargo deny check
 
       - name: Dry run publish
@@ -86,8 +100,10 @@ jobs:
           CRATE="rlm-cli-${VERSION}.crate"
           URL="https://static.crates.io/crates/rlm-cli/${CRATE}"
           downloaded=0
+          # static.crates.io can reject requests without a User-Agent
           for attempt in 1 2 3 4 5 6; do
-            if curl -fsSL -o "${CRATE}" "$URL"; then
+            if curl -fsSL -A 'rlm-cli-release-check' \
+              -o "${CRATE}" "$URL"; then
               downloaded=1
               break
             fi
