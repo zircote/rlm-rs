@@ -166,7 +166,7 @@ multiple conditions — report each as it lands):
 
 | Symptom | Cause | Action |
 | --- | --- | --- |
-| Publish auth fails: "No Trusted Publishing config found" | crates.io TP not configured | One-time setup on crates.io: rlm-cli → Settings → Trusted Publishing → repo `zircote/rlm-rs`, workflow filename `publish.yml`, environment `copilot`. Then `gh workflow run publish.yml --ref v<X.Y.Z>` (dispatch-on-tag makes `github.ref` the tag, so the tag-gated steps run). |
+| Publish auth fails: "No Trusted Publishing config found" | crates.io TP not configured | One-time setup on crates.io: rlm-cli → Settings → Trusted Publishing → repo `zircote/rlm-rs`, workflow filename `publish.yml`, environment `copilot`. Then `gh workflow run publish.yml --ref v<X.Y.Z>` (dispatch-on-tag sets `github.ref` to `refs/tags/v<X.Y.Z>`, so the `startsWith(github.ref, 'refs/tags/v')` gates pass and the tag-gated steps run). |
 | Publish fails: "crate rlm-cli@X.Y.Z already exists" | Duplicate publish attempt raced a successful one | Benign. Verify the version is live (`cargo search rlm-cli`), report, move on. crates.io versions are immutable. |
 | Crate download step exhausts retries | static.crates.io CDN propagation | Re-run the failed job; the publish itself succeeded. |
 | Crate sha256 mismatch (registry vs local package) | Should never happen — cargo packaging is deterministic per commit | Hard stop. Do not attest. Investigate before anything else. |
