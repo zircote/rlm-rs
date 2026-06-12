@@ -44,7 +44,7 @@ gh attestation verify rlm-cli-<version>-<platform> --repo zircote/rlm-rs \
   --predicate-type https://cyclonedx.org/bom
 ```
 
-### crates.io source package
+### crates.io Source Package
 
 The published `.crate` source archive also carries SLSA build provenance,
 attested against the exact bytes the registry serves:
