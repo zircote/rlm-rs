@@ -44,6 +44,21 @@ gh attestation verify rlm-cli-<version>-<platform> --repo zircote/rlm-rs \
   --predicate-type https://cyclonedx.org/bom
 ```
 
+### crates.io source package
+
+The published `.crate` source archive also carries SLSA build provenance,
+attested against the exact bytes the registry serves:
+
+```sh
+curl -fsSLO https://static.crates.io/crates/rlm-cli/rlm-cli-<version>.crate
+gh attestation verify rlm-cli-<version>.crate --repo zircote/rlm-rs
+```
+
+Note that binaries you compile yourself from the crate are not
+byte-identical to the attested release binaries — Rust builds are not
+reproducible by default. The attestation covers the source archive;
+crates.io's checksum chain and Cargo.lock pin it from there.
+
 ### Checksums
 
 `rlm-cli-<version>-checksums.txt` lists SHA-256 digests of every release
