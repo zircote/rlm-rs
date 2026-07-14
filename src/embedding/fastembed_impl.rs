@@ -52,6 +52,12 @@ impl FastEmbedEmbedder {
         })
     }
 
+    fn init_options() -> fastembed::InitOptions {
+        fastembed::InitOptions::new(fastembed::EmbeddingModel::BGEM3)
+            .with_max_length(8192)
+            .with_show_download_progress(false)
+    }
+
     /// Gets or initializes the embedding model (thread-safe).
     ///
     /// The model is loaded lazily on first use to preserve cold start time.
@@ -63,8 +69,7 @@ impl FastEmbedEmbedder {
         }
 
         // Initialize the model
-        let options = fastembed::InitOptions::new(fastembed::EmbeddingModel::BGEM3)
-            .with_show_download_progress(false);
+        let options = Self::init_options();
 
         let model = fastembed::TextEmbedding::try_new(options)
             .map_err(|e| StorageError::Embedding(format!("Failed to load embedding model: {e}")))?;
@@ -185,6 +190,11 @@ mod tests {
     fn test_model_name() {
         let embedder = FastEmbedEmbedder::new().unwrap();
         assert_eq!(embedder.model_name(), "BGE-M3");
+    }
+
+    #[test]
+    fn test_bge_m3_max_length() {
+        assert_eq!(FastEmbedEmbedder::init_options().max_length, 8192);
     }
 
     // Integration tests that require model download are marked #[ignore]
