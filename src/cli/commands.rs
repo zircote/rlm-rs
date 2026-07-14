@@ -305,6 +305,17 @@ fn cmd_reset(db_path: &std::path::Path, yes: bool, _format: OutputFormat) -> Res
     Ok("RLM state reset successfully.\n".to_string())
 }
 
+fn chunker_metadata(buffer: &Buffer, chunk_size: usize, overlap: usize) -> ChunkerMetadata {
+    let mut metadata = ChunkerMetadata::with_size_and_overlap(chunk_size, overlap);
+    if let Some(source) = &buffer.source {
+        metadata = metadata.source(source.to_string_lossy().as_ref());
+    }
+    if let Some(content_type) = buffer.metadata.content_type.as_deref() {
+        metadata = metadata.content_type(content_type);
+    }
+    metadata
+}
+
 fn cmd_load(
     db_path: &std::path::Path,
     file: &std::path::Path,
@@ -333,7 +344,7 @@ fn cmd_load(
 
     // Chunk the content
     let chunker = create_chunker(chunker_name)?;
-    let meta = ChunkerMetadata::with_size_and_overlap(chunk_size, overlap);
+    let meta = chunker_metadata(&buffer, chunk_size, overlap);
     let chunks = chunker.chunk(buffer_id, &content, Some(&meta))?;
 
     // Store chunks
@@ -661,7 +672,7 @@ fn cmd_update_buffer(
 
     // Re-chunk the content
     let chunker = create_chunker(strategy)?;
-    let meta = ChunkerMetadata::with_size_and_overlap(chunk_size, overlap);
+    let meta = chunker_metadata(&updated_buffer, chunk_size, overlap);
     let chunks = chunker.chunk(buffer_id, &new_content, Some(&meta))?;
     let new_chunk_count = chunks.len();
     storage.add_chunks(buffer_id, &chunks)?;

@@ -1724,6 +1724,50 @@ mod cli_tests {
     }
 
     #[test]
+    fn test_cmd_load_code_chunker_uses_source_extension() {
+        let temp_dir = TempDir::new().expect("temp dir");
+        let db_path = temp_dir.path().join("test.db");
+        let file_path = temp_dir.path().join("content.rs");
+        let content = format!(
+            "{}\npub struct Marker;\n{}\n",
+            "x".repeat(100),
+            "y".repeat(100)
+        );
+        std::fs::write(&file_path, &content).expect("write file");
+
+        let cli = make_cli(db_path.clone(), Commands::Init { force: false });
+        execute(&cli).expect("init");
+
+        let cli = make_cli(
+            db_path.clone(),
+            Commands::Load {
+                file: file_path,
+                name: Some("code".to_string()),
+                chunker: "code".to_string(),
+                chunk_size: 90,
+                overlap: 0,
+            },
+        );
+        execute(&cli).expect("load");
+
+        let cli = make_cli_json(
+            db_path,
+            Commands::Chunk(ChunkCommands::List {
+                buffer: "code".to_string(),
+                preview: false,
+                preview_len: 100,
+            }),
+        );
+        let chunks: serde_json::Value =
+            serde_json::from_str(&execute(&cli).expect("list chunks")).expect("chunk JSON");
+
+        assert_eq!(
+            chunks["chunks"][0]["byte_range"]["end"].as_u64(),
+            Some(content.find("pub struct Marker").expect("struct offset") as u64)
+        );
+    }
+
+    #[test]
     fn test_cmd_variable_not_found() {
         let temp_dir = TempDir::new().expect("temp dir");
         let db_path = temp_dir.path().join("test.db");
