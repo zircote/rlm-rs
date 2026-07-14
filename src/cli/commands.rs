@@ -1018,19 +1018,12 @@ fn cmd_dispatch(
             .with_top_k(chunks.len()) // Get all matches
             .with_threshold(threshold)
             .with_semantic(use_semantic)
-            .with_bm25(use_bm25);
+            .with_bm25(use_bm25)
+            .with_buffer(Some(buffer_id));
 
         let results = hybrid_search(&storage, embedder.as_ref(), query_str, &config)?;
 
-        // Filter to only chunks from this buffer
-        let buffer_chunk_ids: std::collections::HashSet<i64> =
-            chunks.iter().filter_map(|c| c.id).collect();
-
-        results
-            .into_iter()
-            .filter(|r| buffer_chunk_ids.contains(&r.chunk_id))
-            .map(|r| r.chunk_id)
-            .collect()
+        results.into_iter().map(|r| r.chunk_id).collect()
     } else {
         chunks.iter().filter_map(|c| c.id).collect()
     };
@@ -1133,13 +1126,6 @@ fn cmd_search(
         _ => (true, true), // hybrid is default
     };
 
-    let config = SearchConfig::new()
-        .with_top_k(top_k)
-        .with_threshold(threshold)
-        .with_rrf_k(rrf_k)
-        .with_semantic(use_semantic)
-        .with_bm25(use_bm25);
-
     // If buffer filter is specified, validate it exists
     let buffer_id = if let Some(identifier) = buffer_filter {
         let buffer = resolve_buffer(&storage, identifier)?;
@@ -1148,22 +1134,15 @@ fn cmd_search(
         None
     };
 
-    let results = hybrid_search(&storage, embedder.as_ref(), query, &config)?;
+    let config = SearchConfig::new()
+        .with_top_k(top_k)
+        .with_threshold(threshold)
+        .with_rrf_k(rrf_k)
+        .with_semantic(use_semantic)
+        .with_bm25(use_bm25)
+        .with_buffer(buffer_id);
 
-    // Filter by buffer if specified
-    let mut results: Vec<SearchResult> = if let Some(bid) = buffer_id {
-        let buffer_chunks: std::collections::HashSet<i64> = storage
-            .get_chunks(bid)?
-            .iter()
-            .filter_map(|c| c.id)
-            .collect();
-        results
-            .into_iter()
-            .filter(|r| buffer_chunks.contains(&r.chunk_id))
-            .collect()
-    } else {
-        results
-    };
+    let mut results = hybrid_search(&storage, embedder.as_ref(), query, &config)?;
 
     // Populate content previews if requested
     if preview {

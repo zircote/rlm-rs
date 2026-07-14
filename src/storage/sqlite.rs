@@ -884,6 +884,21 @@ impl SqliteStorage {
     /// Returns an error if the search fails.
     #[allow(clippy::cast_possible_wrap)]
     pub fn search_fts(&self, query: &str, limit: usize) -> Result<Vec<(i64, f64)>> {
+        self.search_fts_in_buffer(query, limit, None)
+    }
+
+    /// Performs FTS5 BM25 full-text search, optionally restricted to a buffer.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the search fails.
+    #[allow(clippy::cast_possible_wrap)]
+    pub fn search_fts_in_buffer(
+        &self,
+        query: &str,
+        limit: usize,
+        buffer_id: Option<i64>,
+    ) -> Result<Vec<(i64, f64)>> {
         // FTS5 bm25() returns negative scores, more negative = better match
         // We negate it so higher scores = better match
 
@@ -902,15 +917,16 @@ impl SqliteStorage {
                 r"
                 SELECT rowid, -bm25(chunks_fts) as score
                 FROM chunks_fts
-                WHERE chunks_fts MATCH ?
+                WHERE chunks_fts MATCH ?1
+                  AND (?2 IS NULL OR rowid IN (SELECT id FROM chunks WHERE buffer_id = ?2))
                 ORDER BY score DESC
-                LIMIT ?
+                LIMIT ?3
             ",
             )
             .map_err(StorageError::from)?;
 
         let results = stmt
-            .query_map(params![fts_query, limit as i64], |row| {
+            .query_map(params![fts_query, buffer_id, limit as i64], |row| {
                 Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?))
             })
             .map_err(StorageError::from)?

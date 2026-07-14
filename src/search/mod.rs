@@ -57,6 +57,8 @@ pub struct SearchConfig {
     pub use_semantic: bool,
     /// Whether to include BM25 search.
     pub use_bm25: bool,
+    /// Optional buffer ID to restrict before ranking.
+    pub buffer_id: Option<i64>,
 }
 
 impl Default for SearchConfig {
@@ -67,6 +69,7 @@ impl Default for SearchConfig {
             rrf_k: 60,
             use_semantic: true,
             use_bm25: true,
+            buffer_id: None,
         }
     }
 }
@@ -186,6 +189,13 @@ impl SearchConfig {
         self.use_bm25 = enabled;
         self
     }
+
+    /// Restricts search to a single buffer before ranking.
+    #[must_use]
+    pub const fn with_buffer(mut self, buffer_id: Option<i64>) -> Self {
+        self.buffer_id = buffer_id;
+        self
+    }
 }
 
 /// Performs hybrid search combining semantic and BM25 results.
@@ -216,7 +226,7 @@ pub fn hybrid_search(
 
     // BM25 search
     if config.use_bm25 {
-        bm25_results = storage.search_fts(query, config.top_k * 2)?;
+        bm25_results = storage.search_fts_in_buffer(query, config.top_k * 2, config.buffer_id)?;
     }
 
     // If only one type of search is enabled, return those results directly
@@ -291,9 +301,26 @@ fn semantic_search(
         return Ok(Vec::new());
     }
 
+    let buffer_chunk_ids = config
+        .buffer_id
+        .map(|buffer_id| {
+            storage.get_chunks(buffer_id).map(|chunks| {
+                chunks
+                    .into_iter()
+                    .filter_map(|chunk| chunk.id)
+                    .collect::<std::collections::HashSet<_>>()
+            })
+        })
+        .transpose()?;
+
     // Calculate similarities in parallel (rayon data parallelism)
     let mut similarities: Vec<(i64, f32)> = all_embeddings
         .par_iter()
+        .filter(|(chunk_id, _)| {
+            buffer_chunk_ids
+                .as_ref()
+                .is_none_or(|ids| ids.contains(chunk_id))
+        })
         .map(|(chunk_id, embedding)| {
             let sim = cosine_similarity(&query_embedding, embedding);
             (*chunk_id, sim)
@@ -620,7 +647,7 @@ pub fn embed_buffer_chunks_incremental(
 mod tests {
     use super::*;
     use crate::core::{Buffer, Chunk};
-    use crate::embedding::{DEFAULT_DIMENSIONS, FallbackEmbedder};
+    use crate::embedding::{DEFAULT_DIMENSIONS, Embedder, FallbackEmbedder};
     use crate::storage::Storage;
 
     fn setup_storage() -> SqliteStorage {
@@ -664,6 +691,25 @@ mod tests {
         storage.add_chunks(buffer_id, &chunks).unwrap();
 
         storage
+    }
+
+    fn add_single_chunk_buffer(storage: &mut SqliteStorage, content: &str) -> (i64, i64) {
+        let buffer_id = storage
+            .add_buffer(&Buffer::from_content(content.to_string()))
+            .unwrap();
+        storage
+            .add_chunks(
+                buffer_id,
+                &[Chunk::new(
+                    buffer_id,
+                    content.to_string(),
+                    0..content.len(),
+                    0,
+                )],
+            )
+            .unwrap();
+        let chunk_id = storage.get_chunks(buffer_id).unwrap()[0].id.unwrap();
+        (buffer_id, chunk_id)
     }
 
     #[test]
@@ -777,6 +823,44 @@ mod tests {
         assert!(!results.is_empty());
         assert!(results[0].bm25_score.is_some());
         assert!(results[0].semantic_score.is_none());
+    }
+
+    #[test]
+    fn test_buffer_filter_applies_before_ranking() {
+        let mut storage = setup_storage();
+        let (target_buffer, target_chunk) = add_single_chunk_buffer(&mut storage, "needle");
+        let (_, distractor_chunk) =
+            add_single_chunk_buffer(&mut storage, "needle needle needle needle");
+        let embedder = FallbackEmbedder::new(2);
+        let query_embedding = embedder.embed("needle").unwrap();
+        storage
+            .store_embedding(
+                target_chunk,
+                &[-query_embedding[1], query_embedding[0]],
+                Some("query-test"),
+            )
+            .unwrap();
+        storage
+            .store_embedding(distractor_chunk, &query_embedding, Some("query-test"))
+            .unwrap();
+
+        let bm25_config = SearchConfig::new()
+            .with_top_k(1)
+            .with_semantic(false)
+            .with_bm25(true)
+            .with_buffer(Some(target_buffer));
+        let bm25_results = hybrid_search(&storage, &embedder, "needle", &bm25_config).unwrap();
+        assert_eq!(bm25_results[0].chunk_id, target_chunk);
+
+        let semantic_config = SearchConfig::new()
+            .with_top_k(1)
+            .with_threshold(-1.0)
+            .with_semantic(true)
+            .with_bm25(false)
+            .with_buffer(Some(target_buffer));
+        let semantic_results =
+            hybrid_search(&storage, &embedder, "needle", &semantic_config).unwrap();
+        assert_eq!(semantic_results[0].chunk_id, target_chunk);
     }
 
     #[test]
