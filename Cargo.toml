@@ -1,6 +1,6 @@
 [package]
 name = "rlm-cli"
-version = "1.4.0"
+version = "1.4.1"
 edition = "2024"
 rust-version = "1.95"
 description = "Recursive Language Model (RLM) REPL for Claude Code - handles long-context tasks via chunking and recursive sub-LLM calls"
