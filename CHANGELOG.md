@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-07-15
+
 ### Fixed
 
+- **Embedding**: BGE-M3's FastEmbed initialization now sets `max_length` to
+  its real 8192-token context instead of inheriting fastembed's silent
+  512-token default — semantic indexing no longer truncates every chunk to
+  512 tokens on embed, which had been producing silently degraded vectors
+  ([#303](https://github.com/zircote/rlm-rs/pull/303))
 - **Chunking**: `MAX_CHUNK_SIZE` lowered from 50,000 to 24,000 bytes —
   token-dense text can run well under the ~4 bytes/token assumed by the old ceiling,
   so chunks under 50,000 bytes could still exceed BGE-M3's 8192-token limit and get
@@ -289,7 +296,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Variable storage (context and global)
 - Export functionality
 
-[Unreleased]: https://github.com/zircote/rlm-rs/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/zircote/rlm-rs/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/zircote/rlm-rs/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/zircote/rlm-rs/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/zircote/rlm-rs/compare/v1.2.4...v1.3.0
 [1.2.4]: https://github.com/zircote/rlm-rs/compare/v1.2.3...v1.2.4
