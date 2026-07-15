@@ -188,7 +188,7 @@ The "full chunk coverage without truncation" claims above assumed `MAX_CHUNK_SIZ
 (the only enforced ceiling on chunk size, in `src/chunking/mod.rs`) was itself
 small enough to guarantee chunks stay under BGE-M3's 8192-token limit. That
 was not the case: at the original `MAX_CHUNK_SIZE = 50_000` characters, dense
-text (source code, CJK) can exceed roughly 3 characters per token, so chunks
+text (source code, CJK) can run closer to ~1–3 characters per token, so chunks
 well under the 50k-character ceiling could still exceed 8192 tokens and be
 silently truncated by fastembed's tokenizer on embed — the same class of
 silent-truncation problem this ADR was written to eliminate, just recurring

@@ -230,7 +230,7 @@ cargo build --release --features fastembed-embeddings
 
 **Solutions:**
 - Use `--chunker parallel` for multi-threaded chunking
-- Reduce chunk size: `--chunk-size 5000` (default: 3000, max: 24000)
+- Reduce chunk size: `--chunk-size 2000` (default: 3000, max: 24000)
 - Check CPU resources (embedding uses all cores)
 
 **Issue:** High memory usage during search

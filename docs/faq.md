@@ -96,8 +96,8 @@ rlm-cli load app.log --chunker fixed --chunk-size 20000
 ### How do I choose chunk size?
 
 **Default**: 3,000 characters (~750 tokens). **Maximum**: 24,000 characters
-(~8k tokens), the ceiling needed to stay under BGE-M3's 8192-token embedding
-limit even for token-dense content like source code or CJK.
+(~8k tokens at ~3 chars/token for code-like text). For very token-dense content
+(e.g., some CJK), you may need smaller chunks to stay under the 8192-token limit.
 
 **Guidelines**:
 - **Smaller chunks** (1-5KB): Better precision, more chunks to search
