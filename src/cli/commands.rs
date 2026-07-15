@@ -670,7 +670,7 @@ fn cmd_update_buffer(
 
     // Re-chunk the content
     let chunker = create_chunker(strategy)?;
-    let meta = chunker_metadata(&updated_buffer, chunk_size, overlap);
+    let meta = ChunkerMetadata::with_size_and_overlap(chunk_size, overlap);
     let chunks = chunker.chunk(buffer_id, &new_content, Some(&meta))?;
     let new_chunk_count = chunks.len();
     storage.add_chunks(buffer_id, &chunks)?;
