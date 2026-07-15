@@ -326,9 +326,9 @@ use rlm_rs::chunking::{Chunker, FixedChunker};
 
 let chunker = FixedChunker::new();
 // Or with custom size:
-let chunker = FixedChunker::with_size(50_000);
+let chunker = FixedChunker::with_size(20_000);
 // Or with size and overlap:
-let chunker = FixedChunker::with_size_and_overlap(50_000, 1000);
+let chunker = FixedChunker::with_size_and_overlap(20_000, 1000);
 
 let chunks = chunker.chunk(1, "Your long text...", None)?;
 ```
@@ -425,7 +425,7 @@ let strategies = available_strategies(); // ["fixed", "semantic", "code", "paral
 use rlm_rs::chunking::traits::ChunkMetadata;
 
 let metadata = ChunkMetadata::new()
-    .with_size_and_overlap(30_000, 500)
+    .with_size_and_overlap(20_000, 500)
     .source("document.md")
     .content_type("md")
     .preserve_sentences(true)
@@ -443,7 +443,7 @@ use rlm_rs::chunking::{DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP, MAX_CHUNK_SIZE};
 
 // DEFAULT_CHUNK_SIZE = 3_000 (~750 tokens)
 // DEFAULT_OVERLAP = 500
-// MAX_CHUNK_SIZE = 50_000
+// MAX_CHUNK_SIZE = 24_000
 ```
 
 ---

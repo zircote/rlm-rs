@@ -79,7 +79,7 @@ The paper treats chunking as a preprocessing step. rlm-rs makes it a first-class
 rlm-cli load README.md --chunker semantic
 
 # Fixed chunking for uniform sizes
-rlm-cli load server.log --chunker fixed --chunk-size 50000
+rlm-cli load server.log --chunker fixed --chunk-size 20000
 
 # Parallel chunking for speed on large files
 rlm-cli load huge-dump.txt --chunker parallel

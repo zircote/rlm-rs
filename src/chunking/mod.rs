@@ -27,8 +27,19 @@ pub const DEFAULT_CHUNK_SIZE: usize = 3_000;
 /// Default overlap size in characters (for context continuity).
 pub const DEFAULT_OVERLAP: usize = 500;
 
-/// Maximum allowed chunk size (50k chars, ~12.5k tokens).
-pub const MAX_CHUNK_SIZE: usize = 50_000;
+/// Maximum allowed chunk size (24k bytes, ~8k tokens).
+///
+/// Enforced in UTF-8 bytes (chunkers compare against `text.len()` and slice
+/// by byte offsets) — equivalent to characters for ASCII text such as
+/// English prose or most source code. Sized at a conservative ~3 bytes/token
+/// so source-code-heavy chunks stay under BGE-M3's 8192-token embedding
+/// limit and avoid silent truncation on embed (see ADR-010). This is a
+/// heuristic, not a hard guarantee: non-ASCII/CJK-dense text can consume
+/// more tokens per byte than ASCII (see
+/// [`crate::core::chunk::estimate_tokens_for_text`]) and could still exceed
+/// the token limit at this ceiling. A full guarantee would require
+/// token-aware validation at chunk time; see issue #313.
+pub const MAX_CHUNK_SIZE: usize = 24_000;
 
 /// Creates the default chunker (semantic).
 #[must_use]

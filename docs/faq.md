@@ -90,22 +90,29 @@ rm -rf .rlm/
 ````bash
 rlm-cli load docs.md --chunker semantic
 rlm-cli load src/main.rs --chunker code
-rlm-cli load app.log --chunker fixed --chunk-size 150000
+rlm-cli load app.log --chunker fixed --chunk-size 20000
 ````
 
 ### How do I choose chunk size?
 
-**Default**: 50,000 bytes (50KB)
+**Default**: 3,000 bytes (~750 tokens). **Maximum**: 24,000 bytes
+(~8k tokens at a conservative ~3 bytes/token for ASCII-heavy text — for
+plain ASCII, bytes and characters are the same), sized to comfortably cover
+source code and typical mixed-language content under BGE-M3's 8192-token
+embedding limit. This is a byte-count heuristic, not a hard per-content
+guarantee — very CJK-dense text can run denser than ~3 bytes/token, so
+extremely token-dense content should still use a smaller `--chunk-size`.
 
 **Guidelines**:
-- **Smaller chunks** (10-30KB): Better precision, more chunks to search
-- **Larger chunks** (50-100KB): Better context, fewer chunks
-- **Very large chunks** (100KB+): Risk losing granularity
+- **Smaller chunks** (1,000-5,000 bytes): Better precision, more chunks to search
+- **Larger chunks** (5,000-15,000 bytes): Better context, fewer chunks
+- **Chunks near the 24,000-byte maximum**: Risk losing granularity; only use
+  for sparse, low-token-density text
 
 **Recommendation**: Start with defaults, adjust based on your content.
 
 ````bash
-rlm-cli load file.txt --chunk-size 30000 --overlap 1000
+rlm-cli load file.txt --chunk-size 10000 --overlap 1000
 ````
 
 ### What's the difference between semantic and BM25 search?
@@ -206,7 +213,7 @@ Not directly, but you can:
 Use parallel chunking:
 
 ````bash
-rlm-cli load huge-log.txt --chunker parallel --chunk-size 100000
+rlm-cli load huge-log.txt --chunker parallel --chunk-size 20000
 ````
 
 **Tips**:

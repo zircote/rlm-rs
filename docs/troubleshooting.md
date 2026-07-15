@@ -303,10 +303,10 @@ rlm-cli load large.txt --chunker parallel
 
 ````bash
 # Before: Many small chunks
-rlm-cli load file.txt --chunk-size 50000  # More chunks
+rlm-cli load file.txt --chunk-size 3000  # More chunks
 
 # After: Fewer large chunks
-rlm-cli load file.txt --chunk-size 200000  # Fewer chunks
+rlm-cli load file.txt --chunk-size 24000  # Fewer chunks
 ````
 
 3. **Disable embedding if not needed:**
@@ -388,7 +388,7 @@ rlm-cli process using 8GB RAM
 
 ````bash
 # Increase chunk size
-rlm-cli load file.txt --chunk-size 500000  # Larger chunks
+rlm-cli load file.txt --chunk-size 24000  # Larger chunks
 ````
 
 2. **Delete unused buffers:**
