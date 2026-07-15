@@ -206,17 +206,50 @@ pub fn hybrid_search(
     query: &str,
     config: &SearchConfig,
 ) -> Result<Vec<SearchResult>> {
+    hybrid_search_scoped(storage, embedder, query, config, None)
+}
+
+/// Performs hybrid search restricted to a single buffer before ranking.
+///
+/// # Arguments
+///
+/// * `storage` - The storage backend.
+/// * `embedder` - The embedding generator.
+/// * `query` - The search query text.
+/// * `config` - Search configuration.
+/// * `buffer_id` - Buffer ID to restrict before semantic and BM25 ranking.
+///
+/// # Errors
+///
+/// Returns an error if search operations fail.
+pub fn hybrid_search_in_buffer(
+    storage: &SqliteStorage,
+    embedder: &dyn Embedder,
+    query: &str,
+    config: &SearchConfig,
+    buffer_id: i64,
+) -> Result<Vec<SearchResult>> {
+    hybrid_search_scoped(storage, embedder, query, config, Some(buffer_id))
+}
+
+fn hybrid_search_scoped(
+    storage: &SqliteStorage,
+    embedder: &dyn Embedder,
+    query: &str,
+    config: &SearchConfig,
+    buffer_id: Option<i64>,
+) -> Result<Vec<SearchResult>> {
     let mut semantic_results: Vec<(i64, f32)> = Vec::new();
     let mut bm25_results: Vec<(i64, f64)> = Vec::new();
 
     // Semantic search
     if config.use_semantic {
-        semantic_results = semantic_search(storage, embedder, query, config)?;
+        semantic_results = semantic_search(storage, embedder, query, config, buffer_id)?;
     }
 
     // BM25 search
     if config.use_bm25 {
-        bm25_results = storage.search_fts(query, config.top_k * 2)?;
+        bm25_results = storage.search_fts_in_buffer(query, config.top_k * 2, buffer_id)?;
     }
 
     // If only one type of search is enabled, return those results directly
@@ -278,14 +311,18 @@ fn semantic_search(
     embedder: &dyn Embedder,
     query: &str,
     config: &SearchConfig,
+    buffer_id: Option<i64>,
 ) -> Result<Vec<(i64, f32)>> {
     use rayon::prelude::*;
 
     // Generate query embedding
     let query_embedding = embedder.embed(query)?;
 
-    // Get all embeddings from storage
-    let all_embeddings = storage.get_all_embeddings()?;
+    // Get only the embeddings that can participate in this search.
+    let all_embeddings = match buffer_id {
+        Some(buffer_id) => storage.get_embeddings_in_buffer(buffer_id)?,
+        None => storage.get_all_embeddings()?,
+    };
 
     if all_embeddings.is_empty() {
         return Ok(Vec::new());
@@ -620,7 +657,7 @@ pub fn embed_buffer_chunks_incremental(
 mod tests {
     use super::*;
     use crate::core::{Buffer, Chunk};
-    use crate::embedding::{DEFAULT_DIMENSIONS, FallbackEmbedder};
+    use crate::embedding::{DEFAULT_DIMENSIONS, Embedder, FallbackEmbedder};
     use crate::storage::Storage;
 
     fn setup_storage() -> SqliteStorage {
@@ -664,6 +701,25 @@ mod tests {
         storage.add_chunks(buffer_id, &chunks).unwrap();
 
         storage
+    }
+
+    fn add_single_chunk_buffer(storage: &mut SqliteStorage, content: &str) -> (i64, i64) {
+        let buffer_id = storage
+            .add_buffer(&Buffer::from_content(content.to_string()))
+            .unwrap();
+        storage
+            .add_chunks(
+                buffer_id,
+                &[Chunk::new(
+                    buffer_id,
+                    content.to_string(),
+                    0..content.len(),
+                    0,
+                )],
+            )
+            .unwrap();
+        let chunk_id = storage.get_chunks(buffer_id).unwrap()[0].id.unwrap();
+        (buffer_id, chunk_id)
     }
 
     #[test]
@@ -780,6 +836,52 @@ mod tests {
     }
 
     #[test]
+    fn test_buffer_filter_applies_before_ranking() {
+        let mut storage = setup_storage();
+        let (target_buffer, target_chunk) = add_single_chunk_buffer(&mut storage, "needle");
+        let (_, distractor_chunk) =
+            add_single_chunk_buffer(&mut storage, "needle needle needle needle");
+        let embedder = FallbackEmbedder::new(2);
+        let query_embedding = embedder.embed("needle").unwrap();
+        // The target embedding is orthogonal to the query while the distractor
+        // matches, so this fails if buffer filtering happens after ranking.
+        storage
+            .store_embedding(
+                target_chunk,
+                &[-query_embedding[1], query_embedding[0]],
+                Some("query-test"),
+            )
+            .unwrap();
+        storage
+            .store_embedding(distractor_chunk, &query_embedding, Some("query-test"))
+            .unwrap();
+
+        let bm25_config = SearchConfig::new()
+            .with_top_k(1)
+            .with_semantic(false)
+            .with_bm25(true);
+        let bm25_results =
+            hybrid_search_in_buffer(&storage, &embedder, "needle", &bm25_config, target_buffer)
+                .unwrap();
+        assert_eq!(bm25_results[0].chunk_id, target_chunk);
+
+        let semantic_config = SearchConfig::new()
+            .with_top_k(1)
+            .with_threshold(-1.0)
+            .with_semantic(true)
+            .with_bm25(false);
+        let semantic_results = hybrid_search_in_buffer(
+            &storage,
+            &embedder,
+            "needle",
+            &semantic_config,
+            target_buffer,
+        )
+        .unwrap();
+        assert_eq!(semantic_results[0].chunk_id, target_chunk);
+    }
+
+    #[test]
     fn test_hybrid_search_semantic_only() {
         let mut storage = setup_storage_with_chunks();
         let embedder = FallbackEmbedder::new(DEFAULT_DIMENSIONS);
@@ -889,7 +991,7 @@ mod tests {
         // Use a zero threshold to capture all results from the fallback embedder
         let config = SearchConfig::new().with_top_k(10).with_threshold(0.0);
 
-        let results = semantic_search(&storage, &embedder, "test query", &config).unwrap();
+        let results = semantic_search(&storage, &embedder, "test query", &config, None).unwrap();
 
         // Should return results (we embedded 3 chunks)
         assert!(!results.is_empty());
@@ -907,7 +1009,7 @@ mod tests {
         // Verify threshold filtering: with a very high threshold, results should be excluded
         let strict_config = SearchConfig::new().with_top_k(10).with_threshold(0.99);
         let strict_results =
-            semantic_search(&storage, &embedder, "test query", &strict_config).unwrap();
+            semantic_search(&storage, &embedder, "test query", &strict_config, None).unwrap();
 
         // Strict threshold should return fewer (or no) results
         assert!(
