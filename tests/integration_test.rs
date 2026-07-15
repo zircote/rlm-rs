@@ -1724,7 +1724,7 @@ mod cli_tests {
     }
 
     #[test]
-    fn test_cmd_load_code_chunker_uses_source_extension() {
+    fn test_cmd_load_code_chunker_uses_buffer_language_metadata() {
         let temp_dir = TempDir::new().expect("temp dir");
         let db_path = temp_dir.path().join("test.db");
         let file_path = temp_dir.path().join("content.rs");
