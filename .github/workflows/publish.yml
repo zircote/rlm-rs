@@ -41,6 +41,12 @@ jobs:
         with:
           tool: cargo-deny
 
+      - name: Install cargo-audit
+        # yamllint disable-line rule:line-length
+        uses: taiki-e/install-action@7a79fe8c3a13344501c80d99cae481c1c9085912  # v2.67.18
+        with:
+          tool: cargo-audit
+
       - name: Verify package
         run: |
           cargo package --list
@@ -67,6 +73,7 @@ jobs:
           cargo test --all-features --locked
           cargo doc --no-deps --all-features --locked
           cargo deny check
+          cargo audit
 
       - name: Dry run publish
         run: cargo publish --dry-run --allow-dirty

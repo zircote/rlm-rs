@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-07-15
+
+### Fixed
+
+- **Security**: `quinn-proto` bumped from 0.11.14 to 0.11.15, resolving
+  [RUSTSEC-2026-0185](https://rustsec.org/advisories/RUSTSEC-2026-0185) (remote
+  memory exhaustion, high severity). The v1.4.0 release passed `cargo deny
+  check` but was published despite `release.yml`'s separate `cargo audit` gate
+  failing on this advisory, because `publish.yml`'s pre-publish checks ran
+  `cargo deny check` only and had no `cargo audit` step of its own — the two
+  workflows are independently triggered by the same tag push, so a gate that
+  exists in one does not block the other. This release clears the advisory by
+  bumping `quinn-proto` and closes the workflow gap that let it through.
+- **CI**: `publish.yml` now runs `cargo audit` alongside `cargo deny check` in
+  its pre-publish checks, so `release.yml`'s security gate can no longer be
+  bypassed by the parallel publish workflow.
+
 ## [1.4.0] - 2026-07-15
 
 ### Fixed
@@ -296,7 +313,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Variable storage (context and global)
 - Export functionality
 
-[Unreleased]: https://github.com/zircote/rlm-rs/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/zircote/rlm-rs/compare/v1.4.1...HEAD
+[1.4.1]: https://github.com/zircote/rlm-rs/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/zircote/rlm-rs/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/zircote/rlm-rs/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/zircote/rlm-rs/compare/v1.2.4...v1.3.0
