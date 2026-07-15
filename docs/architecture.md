@@ -213,7 +213,7 @@ The `CodeChunker` uses regex-based pattern matching for multiple languages:
 ```rust
 pub const DEFAULT_CHUNK_SIZE: usize = 3_000;    // ~750 tokens
 pub const DEFAULT_OVERLAP: usize = 500;          // Context continuity
-pub const MAX_CHUNK_SIZE: usize = 24_000;        // Safety limit (stays under BGE-M3's 8192-token limit)
+pub const MAX_CHUNK_SIZE: usize = 24_000;        // Safety limit (~8k tokens at a conservative ~3 chars/token; see ADR-010)
 ```
 
 ## Storage Layer

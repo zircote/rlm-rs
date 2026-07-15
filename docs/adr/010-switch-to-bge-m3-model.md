@@ -188,16 +188,25 @@ The "full chunk coverage without truncation" claims above assumed `MAX_CHUNK_SIZ
 (the only enforced ceiling on chunk size, in `src/chunking/mod.rs`) was itself
 small enough to guarantee chunks stay under BGE-M3's 8192-token limit. That
 was not the case: at the original `MAX_CHUNK_SIZE = 50_000` characters, dense
-text (source code, CJK) can exceed roughly 3 characters per token, so chunks
+text (source code, CJK) can run at well below the ~4 chars/token assumed for
+English prose — this project's own `estimate_tokens_for_text` heuristic
+(`src/core/chunk.rs`) treats non-ASCII text as ~1-2 chars/token — so chunks
 well under the 50k-character ceiling could still exceed 8192 tokens and be
 silently truncated by fastembed's tokenizer on embed — the same class of
 silent-truncation problem this ADR was written to eliminate, just recurring
 at a higher, less obvious threshold.
 
 `MAX_CHUNK_SIZE` has been lowered to `24_000` characters (~8k tokens at a
-conservative ~3 chars/token), which reliably stays under the 8192-token
-limit even for token-dense content. The "full chunk coverage without
-truncation" claims hold given this corrected ceiling.
+conservative ~3 chars/token), which comfortably covers source code and
+typical mixed-language content. This is a simple, low-risk mitigation, not
+a hard guarantee: very CJK-dense content can still run denser than the
+~3 chars/token assumption, and could in principle still exceed 8192 tokens
+at the new ceiling. Closing that gap fully would require token-aware
+validation at chunk time (issue #313's suggested fix option 1, using the
+existing `Chunk::estimate_tokens()`/`estimate_tokens_accurate()`), which
+was deliberately deferred in favor of this smaller, immediate fix. The
+"full chunk coverage without truncation" claims above should be read with
+that caveat.
 
 ## Related Decisions
 
