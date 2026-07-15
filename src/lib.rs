@@ -54,6 +54,6 @@ pub use embedding::{
 // Re-export search types
 pub use search::{
     DEFAULT_SIMILARITY_THRESHOLD, DEFAULT_TOP_K, RrfConfig, SearchConfig, SearchResult,
-    buffer_fully_embedded, embed_buffer_chunks, hybrid_search, reciprocal_rank_fusion, search_bm25,
-    search_semantic, weighted_rrf,
+    buffer_fully_embedded, embed_buffer_chunks, hybrid_search, hybrid_search_in_buffer,
+    reciprocal_rank_fusion, search_bm25, search_semantic, weighted_rrf,
 };

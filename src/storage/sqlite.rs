@@ -884,6 +884,21 @@ impl SqliteStorage {
     /// Returns an error if the search fails.
     #[allow(clippy::cast_possible_wrap)]
     pub fn search_fts(&self, query: &str, limit: usize) -> Result<Vec<(i64, f64)>> {
+        self.search_fts_in_buffer(query, limit, None)
+    }
+
+    /// Performs FTS5 BM25 full-text search, optionally restricted to a buffer.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the search fails.
+    #[allow(clippy::cast_possible_wrap)]
+    pub fn search_fts_in_buffer(
+        &self,
+        query: &str,
+        limit: usize,
+        buffer_id: Option<i64>,
+    ) -> Result<Vec<(i64, f64)>> {
         // FTS5 bm25() returns negative scores, more negative = better match
         // We negate it so higher scores = better match
 
@@ -896,26 +911,49 @@ impl SqliteStorage {
             .collect::<Vec<_>>()
             .join(" OR ");
 
-        let mut stmt = self
-            .conn
-            .prepare(
-                r"
-                SELECT rowid, -bm25(chunks_fts) as score
-                FROM chunks_fts
-                WHERE chunks_fts MATCH ?
-                ORDER BY score DESC
-                LIMIT ?
-            ",
-            )
-            .map_err(StorageError::from)?;
+        let results = if let Some(buffer_id) = buffer_id {
+            let mut stmt = self
+                .conn
+                .prepare(
+                    r"
+                    SELECT chunks_fts.rowid, -bm25(chunks_fts) as score
+                    FROM chunks_fts
+                    INNER JOIN chunks ON chunks.id = chunks_fts.rowid
+                    WHERE chunks_fts MATCH ?1
+                      AND chunks.buffer_id = ?2
+                    ORDER BY score DESC
+                    LIMIT ?3
+                ",
+                )
+                .map_err(StorageError::from)?;
 
-        let results = stmt
-            .query_map(params![fts_query, limit as i64], |row| {
+            stmt.query_map(params![fts_query, buffer_id, limit as i64], |row| {
                 Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?))
             })
             .map_err(StorageError::from)?
             .collect::<std::result::Result<Vec<_>, _>>()
-            .map_err(StorageError::from)?;
+            .map_err(StorageError::from)?
+        } else {
+            let mut stmt = self
+                .conn
+                .prepare(
+                    r"
+                    SELECT rowid, -bm25(chunks_fts) as score
+                    FROM chunks_fts
+                    WHERE chunks_fts MATCH ?1
+                    ORDER BY score DESC
+                    LIMIT ?2
+                ",
+                )
+                .map_err(StorageError::from)?;
+
+            stmt.query_map(params![fts_query, limit as i64], |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?))
+            })
+            .map_err(StorageError::from)?
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(StorageError::from)?
+        };
 
         Ok(results)
     }
@@ -933,6 +971,41 @@ impl SqliteStorage {
 
         let results = stmt
             .query_map([], |row| {
+                let chunk_id: i64 = row.get(0)?;
+                let bytes: Vec<u8> = row.get(1)?;
+                let embedding: Vec<f32> = bytes
+                    .chunks_exact(4)
+                    .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+                    .collect();
+                Ok((chunk_id, embedding))
+            })
+            .map_err(StorageError::from)?
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(StorageError::from)?;
+
+        Ok(results)
+    }
+
+    /// Returns chunk embeddings belonging to one buffer for vector similarity search.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the query fails.
+    pub fn get_embeddings_in_buffer(&self, buffer_id: i64) -> Result<Vec<(i64, Vec<f32>)>> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                r"
+                SELECT ce.chunk_id, ce.embedding
+                FROM chunk_embeddings ce
+                INNER JOIN chunks c ON c.id = ce.chunk_id
+                WHERE c.buffer_id = ?
+            ",
+            )
+            .map_err(StorageError::from)?;
+
+        let results = stmt
+            .query_map(params![buffer_id], |row| {
                 let chunk_id: i64 = row.get(0)?;
                 let bytes: Vec<u8> = row.get(1)?;
                 let embedding: Vec<f32> = bytes
@@ -1556,9 +1629,30 @@ mod tests {
         storage
             .store_embedding(chunk_id2, &[0.2_f32], Some("m"))
             .unwrap();
+        let (other_buffer_id, other_chunk_id) = setup_buffer_with_chunk(&mut storage);
+        storage
+            .store_embedding(other_chunk_id, &[0.3_f32], Some("m"))
+            .unwrap();
 
         let all = storage.get_all_embeddings().unwrap();
-        assert_eq!(all.len(), 2);
+        assert_eq!(all.len(), 3);
+
+        let scoped = storage.get_embeddings_in_buffer(buffer_id).unwrap();
+        assert_eq!(scoped.len(), 2);
+        assert!(scoped.iter().any(|(chunk_id, _)| *chunk_id == chunk_id1));
+        assert!(scoped.iter().any(|(chunk_id, _)| *chunk_id == chunk_id2));
+        assert!(
+            !scoped
+                .iter()
+                .any(|(chunk_id, _)| *chunk_id == other_chunk_id)
+        );
+        assert!(
+            storage
+                .get_embeddings_in_buffer(other_buffer_id)
+                .unwrap()
+                .iter()
+                .any(|(chunk_id, _)| *chunk_id == other_chunk_id)
+        );
     }
 
     #[test]
