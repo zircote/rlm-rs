@@ -9,15 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Chunking**: `MAX_CHUNK_SIZE` lowered from 50,000 to 24,000 bytes (UTF-8;
-  equivalent to characters for ASCII text) — dense text (source code, CJK)
-  can consume more tokens per byte than the ratio assumed by the old
-  ceiling, so chunks under 50,000 bytes could still exceed BGE-M3's
-  8192-token limit and get silently truncated on embed; the new ceiling
-  (~8k tokens at a conservative ~3 bytes/token) is a heuristic that
-  comfortably covers source code and typical mixed-language content, though
-  not a hard per-content guarantee
-  ([#313](https://github.com/zircote/rlm-rs/issues/313))
+- **Chunking**: `MAX_CHUNK_SIZE` lowered from 50,000 to 24,000 bytes —
+  token-dense text can run well under the ~4 bytes/token assumed by the old ceiling,
+  so chunks under 50,000 bytes could still exceed BGE-M3's 8192-token limit and get
+  silently truncated on embed; the new ceiling (~8k tokens at ~3 bytes/token for
+  ASCII-heavy text) reduces the risk of truncation ([#313](https://github.com/zircote/rlm-rs/issues/313))
 
 ### Added
 
