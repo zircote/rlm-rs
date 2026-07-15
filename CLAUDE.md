@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-{{crate_name}} is a Rust crate built with modern tooling, strict type safety, and zero-cost abstractions.
+rlm_rs is a Rust crate built with modern tooling, strict type safety, and zero-cost abstractions.
 
 ## Project Structure
 
@@ -75,7 +75,7 @@ This project uses **clippy** with pedantic and nursery lints, and **rustfmt** fo
 
 - **Line length**: 100 characters
 - **Edition**: 2024
-- **MSRV**: 1.80
+- **MSRV**: 1.95
 - **Unsafe code**: Forbidden unless explicitly justified
 - **Panics**: Not allowed in library code (`unwrap`, `expect`, `panic!`)
 
@@ -140,11 +140,11 @@ All public items must have documentation with examples:
 /// # Examples
 ///
 /// ```rust
-/// use {{crate_name}}::{process, Config};
+/// use rlm_rs::{process, Config};
 ///
 /// let result = process("data", &Config::default())?;
 /// assert!(!result.is_empty());
-/// # Ok::<(), {{crate_name}}::Error>(())
+/// # Ok::<(), rlm_rs::Error>(())
 /// ```
 pub fn process(input: &str, config: &Config) -> Result<Output, Error> {
     // implementation
