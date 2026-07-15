@@ -21,7 +21,9 @@ use crate::core::{Buffer, Context, ContextValue};
 use crate::embedding::create_embedder;
 use crate::error::{CommandError, Result, StorageError};
 use crate::io::{read_file, write_file};
-use crate::search::{SearchConfig, SearchResult, embed_buffer_chunks, hybrid_search};
+use crate::search::{
+    SearchConfig, SearchResult, embed_buffer_chunks, hybrid_search, hybrid_search_in_buffer,
+};
 use crate::storage::{SqliteStorage, Storage};
 use regex::RegexBuilder;
 use std::fmt::Write as FmtWrite;
@@ -303,6 +305,17 @@ fn cmd_reset(db_path: &std::path::Path, yes: bool, _format: OutputFormat) -> Res
     Ok("RLM state reset successfully.\n".to_string())
 }
 
+fn chunker_metadata(buffer: &Buffer, chunk_size: usize, overlap: usize) -> ChunkerMetadata {
+    let mut metadata = ChunkerMetadata::with_size_and_overlap(chunk_size, overlap);
+    if let Some(source) = &buffer.source {
+        metadata = metadata.source(source.to_string_lossy().as_ref());
+    }
+    if let Some(content_type) = buffer.metadata.content_type.as_deref() {
+        metadata = metadata.content_type(content_type);
+    }
+    metadata
+}
+
 fn cmd_load(
     db_path: &std::path::Path,
     file: &std::path::Path,
@@ -331,7 +344,7 @@ fn cmd_load(
 
     // Chunk the content
     let chunker = create_chunker(chunker_name)?;
-    let meta = ChunkerMetadata::with_size_and_overlap(chunk_size, overlap);
+    let meta = chunker_metadata(&buffer, chunk_size, overlap);
     let chunks = chunker.chunk(buffer_id, &content, Some(&meta))?;
 
     // Store chunks
@@ -1020,17 +1033,10 @@ fn cmd_dispatch(
             .with_semantic(use_semantic)
             .with_bm25(use_bm25);
 
-        let results = hybrid_search(&storage, embedder.as_ref(), query_str, &config)?;
+        let results =
+            hybrid_search_in_buffer(&storage, embedder.as_ref(), query_str, &config, buffer_id)?;
 
-        // Filter to only chunks from this buffer
-        let buffer_chunk_ids: std::collections::HashSet<i64> =
-            chunks.iter().filter_map(|c| c.id).collect();
-
-        results
-            .into_iter()
-            .filter(|r| buffer_chunk_ids.contains(&r.chunk_id))
-            .map(|r| r.chunk_id)
-            .collect()
+        results.into_iter().map(|r| r.chunk_id).collect()
     } else {
         chunks.iter().filter_map(|c| c.id).collect()
     };
@@ -1133,13 +1139,6 @@ fn cmd_search(
         _ => (true, true), // hybrid is default
     };
 
-    let config = SearchConfig::new()
-        .with_top_k(top_k)
-        .with_threshold(threshold)
-        .with_rrf_k(rrf_k)
-        .with_semantic(use_semantic)
-        .with_bm25(use_bm25);
-
     // If buffer filter is specified, validate it exists
     let buffer_id = if let Some(identifier) = buffer_filter {
         let buffer = resolve_buffer(&storage, identifier)?;
@@ -1148,21 +1147,17 @@ fn cmd_search(
         None
     };
 
-    let results = hybrid_search(&storage, embedder.as_ref(), query, &config)?;
+    let config = SearchConfig::new()
+        .with_top_k(top_k)
+        .with_threshold(threshold)
+        .with_rrf_k(rrf_k)
+        .with_semantic(use_semantic)
+        .with_bm25(use_bm25);
 
-    // Filter by buffer if specified
-    let mut results: Vec<SearchResult> = if let Some(bid) = buffer_id {
-        let buffer_chunks: std::collections::HashSet<i64> = storage
-            .get_chunks(bid)?
-            .iter()
-            .filter_map(|c| c.id)
-            .collect();
-        results
-            .into_iter()
-            .filter(|r| buffer_chunks.contains(&r.chunk_id))
-            .collect()
+    let mut results = if let Some(buffer_id) = buffer_id {
+        hybrid_search_in_buffer(&storage, embedder.as_ref(), query, &config, buffer_id)?
     } else {
-        results
+        hybrid_search(&storage, embedder.as_ref(), query, &config)?
     };
 
     // Populate content previews if requested
