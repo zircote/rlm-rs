@@ -73,7 +73,12 @@ jobs:
           cargo test --all-features --locked
           cargo doc --no-deps --all-features --locked
           cargo deny check
-          cargo audit
+          # deny.toml pins its advisory-db to ~/.cargo/advisory-db (cargo
+          # audit's own default path); running both tools against the same
+          # path in one job has cargo audit refuse to re-clone into the
+          # directory cargo deny already populated. Point audit at its own
+          # path to avoid the collision.
+          cargo audit --db ~/.cargo/advisory-db-audit
 
       - name: Dry run publish
         run: cargo publish --dry-run --allow-dirty

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-07-15
+
+### Fixed
+
+- **CI**: `publish.yml` failed to publish v1.4.1 to crates.io — `deny.toml`
+  pins its advisory-db to `~/.cargo/advisory-db`, the same default path
+  `cargo audit` uses, so running `cargo deny check` then `cargo audit` in the
+  same job step had audit refuse to re-clone into the directory deny had
+  already populated. `cargo audit` now points at a separate `--db` path so
+  the two tools no longer collide. v1.4.1 shipped a GitHub Release and
+  Homebrew update but never reached crates.io because of this; v1.4.2 is the
+  first version to complete the full pipeline including the crates.io
+  publish.
+
 ## [1.4.1] - 2026-07-15
 
 ### Fixed
@@ -313,7 +327,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Variable storage (context and global)
 - Export functionality
 
-[Unreleased]: https://github.com/zircote/rlm-rs/compare/v1.4.1...HEAD
+[Unreleased]: https://github.com/zircote/rlm-rs/compare/v1.4.2...HEAD
+[1.4.2]: https://github.com/zircote/rlm-rs/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/zircote/rlm-rs/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/zircote/rlm-rs/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/zircote/rlm-rs/compare/v1.3.0...v1.3.1
