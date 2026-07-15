@@ -25,7 +25,7 @@ gh attestation verify rlm-cli-<version>-<platform> --repo zircote/rlm-rs
 For example:
 
 ```sh
-gh attestation verify rlm-cli-1.3.1-linux-amd64 --repo zircote/rlm-rs
+gh attestation verify rlm-cli-1.4.0-linux-amd64 --repo zircote/rlm-rs
 ```
 
 A successful verification prints `✓ Verification succeeded!` and confirms
