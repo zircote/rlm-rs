@@ -18,11 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   failing on this advisory, because `publish.yml`'s pre-publish checks ran
   `cargo deny check` only and had no `cargo audit` step of its own — the two
   workflows are independently triggered by the same tag push, so a gate that
-  exists in one does not block the other. `quinn-proto` was not reachable from
-  any feature/target combination in this crate's dependency graph (`cargo tree
-  -i quinn-proto --all-features --target all` returns nothing), so the
-  vulnerable code was never compiled into the shipped binaries; the fix
-  removes the stale advisory and the process gap that let it through.
+  exists in one does not block the other. This release clears the advisory by
+  bumping `quinn-proto` and closes the workflow gap that let it through.
 - **CI**: `publish.yml` now runs `cargo audit` alongside `cargo deny check` in
   its pre-publish checks, so `release.yml`'s security gate can no longer be
   bypassed by the parallel publish workflow.
