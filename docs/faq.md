@@ -95,12 +95,13 @@ rlm-cli load app.log --chunker fixed --chunk-size 20000
 
 ### How do I choose chunk size?
 
-**Default**: 3,000 characters (~750 tokens). **Maximum**: 24,000 characters
-(~8k tokens at a conservative ~3 chars/token), sized to comfortably cover
-source code and typical mixed-language content under BGE-M3's 8192-token
-embedding limit. This is a character-count heuristic, not a hard per-content
-guarantee — very CJK-dense text can run denser than ~3 chars/token, so
-extremely token-dense content should still use a smaller `--chunk-size`.
+**Default**: 3,000 bytes (~750 tokens). **Maximum**: 24,000 bytes (~8k tokens
+at a conservative ~3 bytes/token) — equivalent to characters for ASCII text
+such as English prose or most source code. Sized to comfortably cover source
+code and typical mixed-language content under BGE-M3's 8192-token embedding
+limit. This is a heuristic, not a hard per-content guarantee — non-ASCII/CJK-
+dense text can consume more tokens per byte than ASCII, so extremely
+token-dense content should still use a smaller `--chunk-size`.
 
 **Guidelines**:
 - **Smaller chunks** (1-5KB): Better precision, more chunks to search
