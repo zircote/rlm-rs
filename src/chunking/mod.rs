@@ -27,8 +27,12 @@ pub const DEFAULT_CHUNK_SIZE: usize = 3_000;
 /// Default overlap size in characters (for context continuity).
 pub const DEFAULT_OVERLAP: usize = 500;
 
-/// Maximum allowed chunk size (50k chars, ~12.5k tokens).
-pub const MAX_CHUNK_SIZE: usize = 50_000;
+/// Maximum allowed chunk size (24k chars, ~8k tokens).
+///
+/// Sized conservatively at ~3 chars/token for dense text such as source
+/// code or CJK, so chunks stay reliably under BGE-M3's 8192-token
+/// embedding limit and avoid silent truncation on embed (see ADR-010).
+pub const MAX_CHUNK_SIZE: usize = 24_000;
 
 /// Creates the default chunker (semantic).
 #[must_use]

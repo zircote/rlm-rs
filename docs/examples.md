@@ -69,7 +69,7 @@ Best for: Markdown, documentation, prose
 rlm-cli load docs/architecture.md \
   --name architecture \
   --chunker semantic \
-  --chunk-size 150000 \
+  --chunk-size 20000 \
   --overlap 1000
 
 # Chunk boundaries respect:
@@ -126,7 +126,7 @@ Best for: Log files, plain text, structured data
 rlm-cli load logs/server.log \
   --name server-logs \
   --chunker fixed \
-  --chunk-size 100000 \
+  --chunk-size 20000 \
   --overlap 500
 
 # Splits at exact byte boundaries
@@ -142,7 +142,7 @@ Best for: Large files (>10MB), multi-core systems
 rlm-cli load dataset.txt \
   --name large-dataset \
   --chunker parallel \
-  --chunk-size 200000
+  --chunk-size 20000
 
 # Uses all CPU cores (Rayon thread pool)
 # Typically 3-5x faster than sequential chunking
@@ -638,12 +638,12 @@ rlm-cli write-chunks source-code --output-dir ./chunks/
 # For large files, use parallel chunking
 rlm-cli load large-file.txt \
   --chunker parallel \
-  --chunk-size 100000
+  --chunk-size 20000
 
 # Reduce chunk size for faster embedding
 rlm-cli load docs.md \
   --chunker semantic \
-  --chunk-size 50000  # Smaller chunks = faster embedding
+  --chunk-size 5000  # Smaller chunks = faster embedding
 ````
 
 ### Search Performance
@@ -665,7 +665,7 @@ rlm-cli search "general idea" --mode semantic
 # For very large files, increase chunk size to reduce memory
 rlm-cli load huge-file.txt \
   --chunker parallel \
-  --chunk-size 500000  # Larger chunks = fewer in memory
+  --chunk-size 24000  # Larger chunks = fewer in memory
 
 # Export and delete old buffers
 rlm-cli export-buffers --output backup.json
@@ -686,7 +686,7 @@ rlm-cli delete old-buffer
 rlm-cli load file.txt --chunker parallel
 
 # 2. Increase chunk size (fewer chunks to embed)
-rlm-cli load file.txt --chunk-size 200000
+rlm-cli load file.txt --chunk-size 20000
 
 # 3. Check CPU usage (should be 100% across all cores)
 top -p $(pgrep rlm-cli)

@@ -51,7 +51,7 @@ BGE-M3 offers significant improvements at the cost of larger model size.
 
 ### Primary Decision Drivers
 
-1. **Context coverage**: BGE-M3's 8192 token limit covers full chunks without truncation
+1. **Context coverage**: BGE-M3's 8192 token limit covers full chunks without truncation, provided `MAX_CHUNK_SIZE` is kept low enough for dense text (see "Update" section below)
 2. **Embedding quality**: 1024 dimensions provide richer semantic representation
 3. **Consistency**: Full chunk content is embedded, not truncated
 
@@ -74,7 +74,7 @@ BGE-M3 offers significant improvements at the cost of larger model size.
 - Stronger multilingual support
 
 **Advantages**:
-- Full chunk coverage without truncation
+- Full chunk coverage without truncation (given a chunk-size ceiling sized to the token limit — see "Update" section below)
 - Higher semantic resolution
 - Better multilingual embeddings
 - More accurate semantic search
@@ -156,7 +156,7 @@ The implementation will:
 
 ### Positive
 
-1. **Full chunk coverage**: 8192 tokens handles any reasonable chunk size
+1. **Full chunk coverage**: 8192 tokens handles any reasonable chunk size, provided `MAX_CHUNK_SIZE` is kept low enough for dense text (see "Update" section below)
 2. **Better search quality**: 1024 dimensions capture more semantic nuance
 3. **Multilingual improvement**: Better handling of non-English content
 4. **Future-proof**: More headroom for chunk size increases
@@ -181,6 +181,23 @@ Mitigations:
 - Clear error messages guide users to re-embed
 - Document migration in CHANGELOG
 - Lazy loading preserves cold start for non-embedding operations
+
+## Update (2026-07-14, issue #313)
+
+The "full chunk coverage without truncation" claims above assumed `MAX_CHUNK_SIZE`
+(the only enforced ceiling on chunk size, in `src/chunking/mod.rs`) was itself
+small enough to guarantee chunks stay under BGE-M3's 8192-token limit. That
+was not the case: at the original `MAX_CHUNK_SIZE = 50_000` characters, dense
+text (source code, CJK) can exceed roughly 3 characters per token, so chunks
+well under the 50k-character ceiling could still exceed 8192 tokens and be
+silently truncated by fastembed's tokenizer on embed — the same class of
+silent-truncation problem this ADR was written to eliminate, just recurring
+at a higher, less obvious threshold.
+
+`MAX_CHUNK_SIZE` has been lowered to `24_000` characters (~8k tokens at a
+conservative ~3 chars/token), which reliably stays under the 8192-token
+limit even for token-dense content. The "full chunk coverage without
+truncation" claims hold given this corrected ceiling.
 
 ## Related Decisions
 

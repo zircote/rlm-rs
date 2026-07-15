@@ -137,10 +137,10 @@ rlm-cli load document.md
 rlm-cli load document.md --name my-docs
 
 # Load with fixed chunking and custom size
-rlm-cli load logs.txt --chunker fixed --chunk-size 50000
+rlm-cli load logs.txt --chunker fixed --chunk-size 20000
 
 # Load large file with parallel chunking
-rlm-cli load huge-file.txt --chunker parallel --chunk-size 100000 --overlap 1000
+rlm-cli load huge-file.txt --chunker parallel --chunk-size 20000 --overlap 1000
 ```
 
 ---
@@ -829,7 +829,7 @@ rlm-cli global project_name --delete
 |-----------|---------|-------------|
 | `chunk_size` | 3,000 chars | ~750 tokens (optimized for semantic search) |
 | `overlap` | 500 chars | Context continuity between chunks |
-| `max_chunk_size` | 50,000 chars | Maximum allowed chunk size |
+| `max_chunk_size` | 24,000 chars | Maximum allowed chunk size |
 
 ### Environment Variables
 

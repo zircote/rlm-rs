@@ -137,7 +137,7 @@ This splits Rust code at function boundaries, keeping functions intact.
 ### Example: Fixed Chunking with Overlap
 
 ````bash
-rlm-cli load large-log.txt --chunker fixed --chunk-size 150000 --overlap 1000
+rlm-cli load large-log.txt --chunker fixed --chunk-size 20000 --overlap 1000
 ````
 
 ## Common Workflows
