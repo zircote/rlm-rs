@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Chunking**: `MAX_CHUNK_SIZE` lowered from 50,000 to 24,000 characters —
+  dense text (source code, CJK) can run well under the ~4 chars/token
+  assumed by the old ceiling, so chunks under 50,000 characters could still
+  exceed BGE-M3's 8192-token limit and get silently truncated on embed; the
+  new ceiling (~8k tokens at a conservative ~3 chars/token) reliably stays
+  under the limit ([#313](https://github.com/zircote/rlm-rs/issues/313))
+
 ### Added
 
 - **Tooling**: project-local `/release` Claude Code skill
