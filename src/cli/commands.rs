@@ -21,7 +21,9 @@ use crate::core::{Buffer, Context, ContextValue};
 use crate::embedding::create_embedder;
 use crate::error::{CommandError, Result, StorageError};
 use crate::io::{read_file, write_file};
-use crate::search::{SearchConfig, SearchResult, embed_buffer_chunks, hybrid_search};
+use crate::search::{
+    SearchConfig, SearchResult, embed_buffer_chunks, hybrid_search, hybrid_search_in_buffer,
+};
 use crate::storage::{SqliteStorage, Storage};
 use regex::RegexBuilder;
 use std::fmt::Write as FmtWrite;
@@ -1018,10 +1020,10 @@ fn cmd_dispatch(
             .with_top_k(chunks.len()) // Get all matches
             .with_threshold(threshold)
             .with_semantic(use_semantic)
-            .with_bm25(use_bm25)
-            .with_buffer(Some(buffer_id));
+            .with_bm25(use_bm25);
 
-        let results = hybrid_search(&storage, embedder.as_ref(), query_str, &config)?;
+        let results =
+            hybrid_search_in_buffer(&storage, embedder.as_ref(), query_str, &config, buffer_id)?;
 
         results.into_iter().map(|r| r.chunk_id).collect()
     } else {
@@ -1139,10 +1141,13 @@ fn cmd_search(
         .with_threshold(threshold)
         .with_rrf_k(rrf_k)
         .with_semantic(use_semantic)
-        .with_bm25(use_bm25)
-        .with_buffer(buffer_id);
+        .with_bm25(use_bm25);
 
-    let mut results = hybrid_search(&storage, embedder.as_ref(), query, &config)?;
+    let mut results = if let Some(buffer_id) = buffer_id {
+        hybrid_search_in_buffer(&storage, embedder.as_ref(), query, &config, buffer_id)?
+    } else {
+        hybrid_search(&storage, embedder.as_ref(), query, &config)?
+    };
 
     // Populate content previews if requested
     if preview {
