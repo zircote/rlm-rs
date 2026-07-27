@@ -241,7 +241,7 @@ jobs:
     permissions:
       contents: read
     # yamllint disable-line rule:line-length
-    uses: zircote/.github/.github/workflows/pin-check.yml@03b5fb650065194bb60e8973a2434ea03373a2a7  # main
+    uses: zircote/.github/.github/workflows/pin-check.yml@229e6e6887c2493d43020b934983259361f2cc1b  # main
 
   all-checks-pass:
     name: All Checks Pass
