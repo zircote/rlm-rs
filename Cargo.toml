@@ -48,7 +48,7 @@ rayon = "1.12"
 
 # FastEmbed for semantic embeddings (optional - fallback to hash-based if not available)
 # Use rustls instead of native-tls (openssl) for TLS
-fastembed = { version = "5", optional = true, default-features = false, features = ["ort-download-binaries", "hf-hub-rustls-tls"] }
+fastembed = { version = "6", optional = true, default-features = false, features = ["ort-download-binaries", "hf-hub-rustls-tls"] }
 
 # usearch HNSW vector search (optional - BM25-only fallback if not available)
 # Pinned to <2.25: v2.24.x is supported since rlm-cli v1.2.4 (move-semantics fix resolved the segfault)
